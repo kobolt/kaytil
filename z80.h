@@ -110,8 +110,4 @@ typedef struct z80_s {
 void z80_init(z80_t *z80);
 void z80_execute(z80_t *z80, mem_t *mem);
 
-void z80_trace_init(void);
-void z80_trace_dump(FILE *fh);
-void z80_dump(FILE *fh, z80_t *z80, mem_t *mem);
-
 #endif /* _Z80_H */

@@ -1,65 +1,26 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <termios.h>
-#include <unistd.h>
-#include <poll.h>
-#include <errno.h>
 #include "panic.h"
-
-
-
-static void console_exit_handler(void)
-{
-  /* Restore canonical mode and echo. */
-  struct termios ts;
-  tcgetattr(STDIN_FILENO, &ts);
-  ts.c_lflag |= ICANON | ECHO;
-  tcsetattr(STDIN_FILENO, TCSANOW, &ts);
-}
-
-
-
-void console_init(void)
-{
-  atexit(console_exit_handler);
-
-  /* Turn off canonical mode and echo. */
-  struct termios ts;
-  tcgetattr(STDIN_FILENO, &ts);
-  ts.c_lflag &= ~ICANON & ~ECHO;
-  tcsetattr(STDIN_FILENO, TCSANOW, &ts);
-
-  /* Make stdout unbuffered. */
-  setvbuf(stdout, NULL, _IONBF, 0);
-}
+#include "uart.h"
 
 
 
 uint8_t console_status(void)
 {
-  int result;
-  struct pollfd fds[1];
-
-  fds[0].fd = fileno(stdin);
-  fds[0].events = POLLIN;
-  result = poll(fds, 1, 0);
-  if (result == -1) {
-    if (errno == EINTR) {
-      return 0x00; /* Handle this as nothing available. */
-    } else {
-      panic("poll() failed with errno: %d\n", errno);
-    }
-  }
-  return (result == 0) ? 0x00 : 0xFF;
+  return (uart0_pending() == 0) ? 0x00 : 0xFF;
 }
 
 
 
 uint8_t console_read(void)
 {
-  uint8_t value = fgetc(stdin);
+  uint8_t value;
+  
+  /* Wait until there is an actual character available. */
+  while ((value = uart0_recv()) == '\0') {
+    asm("wait");
+  }
 
   switch (value) {
   case 0x0A: /* Convert LF to CR */
@@ -69,8 +30,8 @@ uint8_t console_read(void)
     return 0x08;
 
   case 0x1B: /* Escape */
-    if (fgetc(stdin) == '[') {
-      value = fgetc(stdin);
+    if (uart0_recv() == '[') {
+      value = uart0_recv();
       switch (value) {
       case 'A': return 0x0B; /* Cursor Up */
       case 'B': return 0x0A; /* Cursor Down */
@@ -96,6 +57,7 @@ void console_write(uint8_t value)
 {
   static int escape = 0;
   static uint8_t row = 0;
+  char single[2];
 
   /* ADM-3A emulation of escape codes. */
   if (escape == 2) {
@@ -105,7 +67,33 @@ void console_write(uint8_t value)
 
   } else if (escape == 3) {
     /* ANSI - Cursor Position */
-    fprintf(stdout, "\e[%d;%dH", row - 31, value - 31);
+    /* Lite implementation of: printf("\e[%d;%dH", row - 31, value - 31); */
+
+    single[1] = '\0';
+    uart0_send("\e[");
+
+    if ((row - 31) >= 10) {
+      single[0] = ((row - 31) / 10) + 0x30;
+      uart0_send(single);
+      single[0] = ((row - 31) % 10) + 0x30;
+      uart0_send(single);
+    } else {
+      single[0] = (row - 31) + 0x30;
+      uart0_send(single);
+    }
+    uart0_send(";");
+
+    if ((value - 31) >= 10) {
+      single[0] = ((value - 31) / 10) + 0x30;
+      uart0_send(single);
+      single[0] = ((value - 31) % 10) + 0x30;
+      uart0_send(single);
+    } else {
+      single[0] = (value - 31) + 0x30;
+      uart0_send(single);
+    }
+
+    uart0_send("H");
     escape++;
     return;
 
@@ -123,7 +111,9 @@ void console_write(uint8_t value)
   /* Pass through regular ASCII characters. */
   if (value >= 0x20 && value < 0x7F) {
     if (escape == 0) {
-      fputc(value, stdout);
+      single[0] = value;
+      single[1] = '\0';
+      uart0_send(single);
       return;
     }
   }
@@ -132,12 +122,12 @@ void console_write(uint8_t value)
   switch (value) {
   case 0x0B:
     /* ANSI - Cursor Up */
-    fprintf(stdout, "\e[A");
+    uart0_send("\e[A");
     break;
 
   case 0x0C:
     /* ANSI - Cursor Right */
-    fprintf(stdout, "\e[C");
+    uart0_send("\e[C");
     break;
 
   case 0x1B:
@@ -150,28 +140,35 @@ void console_write(uint8_t value)
 
   case 0x1A:
     /* ANSI - Erase in Display */
-    fprintf(stdout, "\e[2J");
+    uart0_send("\e[2J");
+    /* Fallthrough! */
   case 0x1E:
     /* ANSI - Cursor Home */
-    fprintf(stdout, "\e[H");
+    uart0_send("\e[H");
     break;
 
   case 0x3D:
     if (escape == 1) {
       escape++;
     } else {
-      fputc('=', stdout);
+      single[0] = '=';
+      single[1] = '\0';
+      uart0_send(single);
       escape = 0;
     }
     break;
 
   case 0xA4:
-    fputc('©', stdout);
+    single[0] = '©';
+    single[1] = '\0';
+    uart0_send(single);
     break;
 
   default:
     /* Passthrough all other characters. */
-    fputc(value, stdout);
+    single[0] = value;
+    single[1] = '\0';
+    uart0_send(single);
     break;
   }
 }
