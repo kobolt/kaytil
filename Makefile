@@ -1,5 +1,4 @@
-#CFLAGS=-Wall -DDISABLE_Z80_TRACE -DIGNORE_PANIC -DDISABLE_SLOWDOWN
-CFLAGS=-Wall
+CFLAGS=-Wall -Wextra -DDISABLE_Z80_TRACE
 
 all: kaytil cbios.bin cpm22.bin
 

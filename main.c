@@ -14,6 +14,11 @@
 
 
 
+#define DEFAULT_CPM22_LOCATION "cpm22.bin"
+#define DEFAULT_CBIOS_LOCATION "cbios.bin"
+
+
+
 static z80_t z80;
 static mem_t mem;
 
@@ -42,9 +47,9 @@ static void sig_handler(int sig)
 {
   switch (sig) {
   case SIGINT:
-    fprintf(stderr, "Aborted!\n");
+    fprintf(stderr, "\n");
     crash_dump();
-    exit(1);
+    exit(EXIT_SUCCESS);
 
   case SIGALRM:
   default:
@@ -65,7 +70,7 @@ void panic(const char *format, ...)
   vfprintf(stderr, format, args);
   va_end(args);
 
-  exit(1);
+  exit(EXIT_FAILURE);
 #endif /* IGNORE_PANIC */
 }
 
@@ -79,11 +84,15 @@ void display_help(const char *progname)
      "  -b IMAGE   Load disk IMAGE in drive B\n"
      "  -c IMAGE   Load disk IMAGE in drive C\n"
      "  -d IMAGE   Load disk IMAGE in drive D\n"
+     "  -m FILE    Load CP/M 2.2 binary from FILE instead of '%s'\n"
+     "  -s FILE    Load CBIOS binary from FILE instead of '%s'\n"
      "\n"
      "Using uppercase (-A, -B, -C or -D) will cause changes to the disk\n"
      "to be written back to the file instead of just being temporary.\n"
-     "Instead of options, a disk image for drive A can be specifed directly.\n"
-     "\n");
+     "Instead of options, a disk image for drive A can be specified directly.\n"
+     "\n",
+     DEFAULT_CPM22_LOCATION,
+     DEFAULT_CBIOS_LOCATION);
 }
 
 
@@ -91,10 +100,12 @@ void display_help(const char *progname)
 int main(int argc, char *argv[])
 {
   int c;
+  char *cpm22_location = NULL;
+  char *cbios_location = NULL;
 
   disk_init();
 
-  while ((c = getopt(argc, argv, "a:b:c:d:A:B:C:D:h")) != -1) {
+  while ((c = getopt(argc, argv, "a:b:c:d:A:B:C:D:m:s:h")) != -1) {
     switch (c) {
     case 'a':
     case 'b':
@@ -116,6 +127,14 @@ int main(int argc, char *argv[])
       }
       break;
 
+    case 'm':
+      cpm22_location = optarg;
+      break;
+
+    case 's':
+      cbios_location = optarg;
+      break;
+
     case 'h':
       display_help(argv[0]);
       return EXIT_SUCCESS;
@@ -128,8 +147,8 @@ int main(int argc, char *argv[])
   }
 
   /* Quick direct image loading. */
-  if (argc == 2 && optind == 1) {
-    if (disk_image_load(0, argv[1], false) != 0) {
+  if (argc > optind) {
+    if (disk_image_load(0, argv[optind], false) != 0) {
       fprintf(stderr, "Error: Failed to load disk image: %s\n", argv[1]);
       return EXIT_FAILURE;
     }
@@ -144,8 +163,16 @@ int main(int argc, char *argv[])
   mem_init(&mem);
 
   /* Load CP/M 2.2 and CBIOS. */
-  mem_load_from_file(&mem, "cpm22.bin", 0xE400);
-  mem_load_from_file(&mem, "cbios.bin", 0xFA00);
+  if (mem_load_from_file(&mem, (cpm22_location) ? 
+    cpm22_location : DEFAULT_CPM22_LOCATION, 0xE400) != 0) {
+    fprintf(stderr, "Error: Failed to load CP/M 2.2 binary!\n");
+    return EXIT_FAILURE;
+  }
+  if (mem_load_from_file(&mem, (cbios_location) ? 
+    cbios_location : DEFAULT_CBIOS_LOCATION, 0xFA00) != 0) {
+    fprintf(stderr, "Error: Failed to load CBIOS binary!\n");
+    return EXIT_FAILURE;
+  }
   /* Need to set the PC directly to the BIOS,
      since this one will initialize the data area in the zero page. */
   z80.pc = 0xFA00;

@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdint.h>
+#include <string.h>
 #include <stdbool.h>
 #include <stdarg.h>
 
@@ -901,7 +901,7 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt_op = dt_rot[y];
       dt_t dt_reg = dt_r[z];
       z80_trace(z80, mem, 2, "%s %s", dt_text(dt_op), dt_text(dt_reg));
-      uint8_t value;
+      uint8_t value = 0;
       switch (dt_reg) {
       case DT_R_B:   value = z80->b; break;
       case DT_R_C:   value = z80->c; break;
@@ -1103,7 +1103,7 @@ void z80_execute(z80_t *z80, mem_t *mem)
     } else if (1 == x && 6 == z) {
       dt_t dt = dt_im[y];
       z80_trace(z80, mem, 2, "IM %s", dt_text(dt));
-      panic("Unimplemented IM\n");
+      panic("Unimplemented IM (%02x)\n", dt);
       z80->pc += 2;
 
     } else if (1 == x && 7 == z && 0 == y) {
@@ -1312,7 +1312,7 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt_dst = dt_rix[y];
       dt_t dt_src = dt_rix[z];
       z80_trace(z80, mem, 3, "LD %s,%s", dt_text(dt_dst), dt_text(dt_src));
-      uint8_t value;
+      uint8_t value = 0;
       switch (dt_src) {
       case DT_R_B:   value = z80->b; break;
       case DT_R_C:   value = z80->c; break;
@@ -1365,7 +1365,7 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt_op  = dt_alu[y];
       dt_t dt_reg = dt_rix[z];
       z80_trace(z80, mem, 3, "%s%s", dt_text(dt_op), dt_text(dt_reg));
-      uint8_t value;
+      uint8_t value = 0;
       switch (dt_reg) {
       case DT_R_IXH: value = z80->ixh; break;
       case DT_R_IXL: value = z80->ixl; break;
@@ -1519,7 +1519,7 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt_dst = dt_riy[y];
       dt_t dt_src = dt_riy[z];
       z80_trace(z80, mem, 3, "LD %s,%s", dt_text(dt_dst), dt_text(dt_src));
-      uint8_t value;
+      uint8_t value = 0;
       switch (dt_src) {
       case DT_R_B:   value = z80->b; break;
       case DT_R_C:   value = z80->c; break;
@@ -1572,7 +1572,7 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt_op  = dt_alu[y];
       dt_t dt_reg = dt_riy[z];
       z80_trace(z80, mem, 3, "%s%s", dt_text(dt_op), dt_text(dt_reg));
-      uint8_t value;
+      uint8_t value = 0;
       switch (dt_reg) {
       case DT_R_IYH: value = z80->iyh; break;
       case DT_R_IYL: value = z80->iyl; break;
@@ -1657,7 +1657,7 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt = dt_cc[y-4];
       z80_trace(z80, mem, 2, "JR %s,%04x", dt_text(dt),
         z80->pc + displacement + 2);
-      bool go;
+      bool go = false;
       switch (dt) {
       case DT_CC_NZ: go = z80->flag.z  == 0; break;
       case DT_CC_Z:  go = z80->flag.z  == 1; break;
@@ -1940,7 +1940,7 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt_dst = dt_r[y];
       dt_t dt_src = dt_r[z];
       z80_trace(z80, mem, 1, "LD %s,%s", dt_text(dt_dst), dt_text(dt_src));
-      uint8_t value;
+      uint8_t value = 0;
       switch (dt_src) {
       case DT_R_B:   value = z80->b; break;
       case DT_R_C:   value = z80->c; break;
@@ -1974,7 +1974,7 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt_op  = dt_alu[y];
       dt_t dt_reg = dt_r[z];
       z80_trace(z80, mem, 1, "%s%s", dt_text(dt_op), dt_text(dt_reg));
-      uint8_t value;
+      uint8_t value = 0;
       switch (dt_reg) {
       case DT_R_B:   value = z80->b; break;
       case DT_R_C:   value = z80->c; break;
@@ -2035,7 +2035,7 @@ void z80_execute(z80_t *z80, mem_t *mem)
     } else if (3 == x && 0 == z) {
       dt_t dt = dt_cc[y];
       z80_trace(z80, mem, 1, "RET %s", dt_text(dt));
-      bool go;
+      bool go = false;
       switch (dt) {
       case DT_CC_NZ: go = z80->flag.z  == 0; break;
       case DT_CC_Z:  go = z80->flag.z  == 1; break;
@@ -2091,7 +2091,7 @@ void z80_execute(z80_t *z80, mem_t *mem)
       uint16_t address = (mc[2] << 8) + mc[1];
       dt_t dt = dt_cc[y];
       z80_trace(z80, mem, 3, "JP %s,%04x", dt_text(dt), address);
-      bool go;
+      bool go = false;
       switch (dt) {
       case DT_CC_NZ: go = z80->flag.z  == 0; break;
       case DT_CC_Z:  go = z80->flag.z  == 1; break;
@@ -2159,7 +2159,7 @@ void z80_execute(z80_t *z80, mem_t *mem)
       uint16_t address = (mc[2] << 8) + mc[1];
       dt_t dt = dt_cc[y];
       z80_trace(z80, mem, 3, "CALL %s,%04x", dt_text(dt), address);
-      bool go;
+      bool go = false;
       switch (dt) {
       case DT_CC_NZ: go = z80->flag.z  == 0; break;
       case DT_CC_Z:  go = z80->flag.z  == 1; break;
