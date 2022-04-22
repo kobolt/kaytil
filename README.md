@@ -1,5 +1,5 @@
 # Kaytil
-Z80 CP/M 2.2 emulator focused on running Kaypro II compatible games in a Linux terminal. (Now also availbale on a GR-SAKURA or a Raspberry Pi Pico.)
+Z80 CP/M 2.2 emulator focused on running Kaypro II compatible games in a Linux terminal. (Now also available on a GR-SAKURA or a Raspberry Pi Pico.)
 
 Some features:
 * Z80 emulation passes ZEXDOC tests.
