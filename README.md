@@ -1,5 +1,5 @@
 # Kaytil
-Z80 CP/M 2.2 emulator focused on running Kaypro II compatible games in a Linux terminal. (Now also availbale on a GR-SAKURA or a Rasperry Pi Pico.)
+Z80 CP/M 2.2 emulator focused on running Kaypro II compatible games in a Linux terminal. (Now also availbale on a GR-SAKURA or a Raspberry Pi Pico.)
 
 Some features:
 * Z80 emulation passes ZEXDOC tests.
@@ -43,7 +43,7 @@ The resulting "kaytil.bin" file can be copied to the fake USB disk when the GR-S
 Disk images must be named "A.IMG", "B.IMG", "C.IMG" and "D.IMG" and then placed on the root of a FAT16 formatted MicroSD card.
 The console is available on the first UART, marked by pin 0 (RX) and pin 1 (TX) running at 115200 baud.
 
-## Rasperry Pi Pico Version
+## Raspberry Pi Pico Version
 Building this requires CMake, the ARM GCC toolchain and [Pico SDK](https://github.com/raspberrypi/pico-sdk).
 In typical CMake fashion, create a build folder and call cmake pointing to the "pico/" subdirectory containing the CMakeLists.txt file:
 ```
