@@ -22,7 +22,7 @@ int close(int file) {
 char *__env[1] = { 0 };
 char **environ = __env;
 
-int execve(char *name, char **argv, char **env) {
+int execve(const char *name, char * const *argv, char * const *env) {
   UNUSED(name);
   UNUSED(argv);
   UNUSED(env);

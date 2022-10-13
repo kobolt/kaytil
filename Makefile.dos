@@ -1,0 +1,30 @@
+CFLAGS=-Wall -Wextra -DDISABLE_Z80_TRACE -DCONIO_CONSOLE -DBUSYWAIT_SLOWDOWN
+
+all: kaytil.exe
+
+kaytil.exe: main.o z80.o mem.o io.o disk.o console.o
+	gcc -o kaytil.exe $^ ${CFLAGS}
+
+main.o: main.c
+	gcc -c $^ ${CFLAGS}
+
+z80.o: z80.c
+	gcc -c $^ ${CFLAGS}
+
+mem.o: mem.c
+	gcc -c $^ ${CFLAGS}
+
+io.o: io.c
+	gcc -c $^ ${CFLAGS}
+
+disk.o: disk.c
+	gcc -c $^ ${CFLAGS}
+
+console.o: console.c
+	gcc -c $^ ${CFLAGS}
+
+.PHONY: clean
+clean:
+	del *.o
+	del kaytil.exe
+

@@ -1,5 +1,5 @@
 # Kaytil
-Z80 CP/M 2.2 emulator focused on running Kaypro II compatible games in a Linux terminal. (Now also available on a GR-SAKURA or a Raspberry Pi Pico.)
+Z80 CP/M 2.2 emulator focused on running Kaypro II compatible games in a Linux terminal. (Now also available on a GR-SAKURA, Raspberry Pi Pico, DOS or Windows.)
 
 Some features:
 * Z80 emulation passes ZEXDOC tests.
@@ -33,6 +33,12 @@ stty intr ''
 ```
 This makes the Ctrl+C pass into programs in the emulator, making it possible to for instance break in MBASIC or exiting certain other programs.
 
+There is also an alternative version based on curses available by using a different Makefile:
+```
+make -f Makefile.curses
+```
+This is useful if running on a different kind of terminal that is not ANSI compatible.
+
 ## Gadget Renesas GR-SAKURA Version
 Building this requires the RX GCC toolchain.
 Then use the appropriate Makefile:
@@ -55,6 +61,34 @@ make
 The resulting "kaytil.elf" file can be flashed with SWD, or the "kaytil.uf2" file can be copied through USB in the BOOTSEL mode.
 Disk images are part of the binary itself, so replace the "disk_a.img", "disk_b.img", "disk_c.img" or "disk_d.img" files in the "pico/" subdirectory BEFORE building!
 The console is available on the "standard" UART at pin 1 and 2 running at 115200 baud.
+
+## DOS (DJGPP) Version
+Building this requires the [DJGPP toolchain](https://delorie.com/) and will only run on a fast 32-bit system in protected mode.
+
+It has been tested with these packages:
+* djdev205.zip
+* gcc121b.zip
+* bnu2351b.zip
+* mak43br2.zip
+* csdpmi7b.zip
+
+Then use the appropriate Makefile:
+```
+make -f Makefile.dos
+```
+This version functions the same way as the Linux version with regards to command line arguments and disk images. Note that the CWSDPMI.EXE extender is also needed to run the program on systems without the DJGPP toolchain.
+
+## Windows (MinGW) Version
+Building this requires the [MinGW toolchain](https://www.mingw-w64.org/) and [PDCurses](https://pdcurses.org/).
+
+Assuming that MinGW and PDCurses directories exist on the same directory level as the source directory, then from the source directory use these commands:
+```
+set PATH=..\mingw32\bin;%PATH%
+set PDCURSES_SRCDIR=../PDCurses-3.9
+mingw32-make.exe -f %PDCURSES_SRCDIR%/wincon/Makefile
+mingw32-make.exe -f Makefile.mingw
+```
+This version also functions the same way as the Linux version with regards to command line arguments and disk images.
 
 ## Assembling CP/M 2.2 and CBIOS
 In order to assemble the "cpm22.asm" and "cbios.asm" files you will need to use the real CP/M Macro Assembler.

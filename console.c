@@ -4,8 +4,14 @@
 #include <stdbool.h>
 #include <termios.h>
 #include <unistd.h>
+
+#ifdef CONIO_CONSOLE
+#include <conio.h>
+#else /* !CONIO_CONSOLE */
 #include <poll.h>
 #include <errno.h>
+#endif /* CONIO_CONSOLE */
+
 #include "panic.h"
 
 
@@ -37,6 +43,12 @@ void console_init(void)
 
 
 
+#ifdef CONIO_CONSOLE
+uint8_t console_status(void)
+{
+  return (kbhit() == 0) ? 0x00 : 0xFF;
+}
+#else /* !CONIO_CONSOLE */
 uint8_t console_status(void)
 {
   int result;
@@ -54,6 +66,7 @@ uint8_t console_status(void)
   }
   return (result == 0) ? 0x00 : 0xFF;
 }
+#endif /* CONIO_CONSOLE */
 
 
 
@@ -151,6 +164,7 @@ void console_write(uint8_t value)
   case 0x1A:
     /* ANSI - Erase in Display */
     fprintf(stdout, "\e[2J");
+    /* Fallthrough! */
   case 0x1E:
     /* ANSI - Cursor Home */
     fprintf(stdout, "\e[H");

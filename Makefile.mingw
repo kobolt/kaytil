@@ -1,0 +1,30 @@
+CFLAGS=-Wall -Wextra -I../PDCurses-3.9 -DDISABLE_Z80_TRACE -DWINDOWS_SLOWDOWN
+
+all: kaytil.exe
+
+kaytil.exe: main.o z80.o mem.o io.o disk.o console_curses.o pdcurses.a
+	gcc -o kaytil.exe $^ ${CFLAGS}
+
+main.o: main.c
+	gcc -c $^ ${CFLAGS}
+
+z80.o: z80.c
+	gcc -c $^ ${CFLAGS}
+
+mem.o: mem.c
+	gcc -c $^ ${CFLAGS}
+
+io.o: io.c
+	gcc -c $^ ${CFLAGS}
+
+disk.o: disk.c
+	gcc -c $^ ${CFLAGS}
+
+console_curses.o: console_curses.c
+	gcc -c $^ ${CFLAGS}
+
+.PHONY: clean
+clean:
+	del *.o
+	del kaytil.exe
+

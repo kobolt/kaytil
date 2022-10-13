@@ -4,7 +4,11 @@
 #include <signal.h>
 #include <stdarg.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/time.h>
+#ifdef WINDOWS_SLOWDOWN
+#include <windows.h>
+#endif
 
 #include "z80.h"
 #include "mem.h"
@@ -51,7 +55,6 @@ static void sig_handler(int sig)
     crash_dump();
     exit(EXIT_SUCCESS);
 
-  case SIGALRM:
   default:
     break;
   }
@@ -94,6 +97,30 @@ void display_help(const char *progname)
      DEFAULT_CPM22_LOCATION,
      DEFAULT_CBIOS_LOCATION);
 }
+
+
+
+#ifdef BUSYWAIT_SLOWDOWN
+/* Based on: https://www.gnu.org/software/libc/manual/html_node/Calculating-Elapsed-Time.html */
+void timeval_diff(struct timeval *r, struct timeval *a, struct timeval *b)
+{
+  int nsec;
+
+  if (a->tv_usec < b->tv_usec) {
+    nsec = (b->tv_usec - a->tv_usec) / 1000000 + 1;
+    b->tv_usec -= 1000000 * nsec;
+    b->tv_sec += nsec;
+  }
+  if (a->tv_usec - b->tv_usec > 1000000) {
+    nsec = (a->tv_usec - b->tv_usec) / 1000000;
+    b->tv_usec += 1000000 * nsec;
+    b->tv_sec -= nsec;
+  }
+
+  r->tv_sec = a->tv_sec - b->tv_sec;
+  r->tv_usec = a->tv_usec - b->tv_usec;
+}
+#endif /* BUSYWAIT_SLOWDOWN */
 
 
 
@@ -155,7 +182,6 @@ int main(int argc, char *argv[])
   }
 
   signal(SIGINT, sig_handler);
-  console_init();
 #ifndef DISABLE_Z80_TRACE
   z80_trace_init();
 #endif /* DISABLE_Z80_TRACE */
@@ -173,6 +199,9 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Error: Failed to load CBIOS binary!\n");
     return EXIT_FAILURE;
   }
+
+  console_init();
+
   /* Need to set the PC directly to the BIOS,
      since this one will initialize the data area in the zero page. */
   z80.pc = 0xFA00;
@@ -182,8 +211,30 @@ int main(int argc, char *argv[])
   disk_sys_write(&mem, 0xE400, 0x1600);
 
 #ifndef DISABLE_SLOWDOWN
-  struct itimerval new;
   int count = 0;
+
+#ifdef BUSYWAIT_SLOWDOWN
+  struct timeval now, then, diff;
+  gettimeofday(&then, NULL);
+
+#elif WINDOWS_SLOWDOWN
+  HANDLE timer = NULL;
+  LARGE_INTEGER due_time;
+
+  timer = CreateWaitableTimer(NULL, FALSE, NULL);
+  if (timer == NULL) {
+    fprintf(stderr, "CreateWaitableTimer() failed: %lu\n", GetLastError());
+    return EXIT_FAILURE;
+  }
+
+  due_time.QuadPart = -100000;
+  if (SetWaitableTimer(timer, &due_time, 10, NULL, NULL, FALSE) == FALSE) {
+    fprintf(stderr, "SetWaitableTimer() failed: %lu\n", GetLastError());
+    return EXIT_FAILURE;
+  }
+
+#else /* !BUSYWAIT_SLOWDOWN */
+  struct itimerval new;
   new.it_value.tv_sec = 0;
   new.it_value.tv_usec = 10000;
   new.it_interval.tv_sec = 0;
@@ -191,6 +242,8 @@ int main(int argc, char *argv[])
 
   signal(SIGALRM, sig_handler);
   setitimer(ITIMER_REAL, &new, NULL);
+
+#endif /* BUSYWAIT_SLOWDOWN */
 #endif /* DISABLE_SLOWDOWN */
 
   while (1) {
@@ -198,10 +251,35 @@ int main(int argc, char *argv[])
 
 #ifndef DISABLE_SLOWDOWN
     count++;
+
+#ifdef BUSYWAIT_SLOWDOWN
+    if (count > 50000) {
+      count = 0;
+      /* Busy-wait using clock to slow down. */
+      do {
+        gettimeofday(&now, NULL);
+        timeval_diff(&diff, &now, &then);
+      } while (diff.tv_sec == 0 && diff.tv_usec < 100000);
+
+      gettimeofday(&then, NULL);
+    }
+
+#elif WINDOWS_SLOWDOWN
+    if (count > 10000) {
+      count = 0;
+      if (WaitForSingleObject(timer, INFINITE) != WAIT_OBJECT_0) {
+        fprintf(stderr, "WaitForSingleObject() failed: %lu\n", GetLastError());
+        return EXIT_FAILURE;
+      }
+    }
+
+#else /* !BUSYWAIT_SLOWDOWN */
     if (count > 5000) {
       count = 0;
       pause(); /* Wait for SIGALRM. */
     }
+
+#endif /* BUSYWAIT_SLOWDOWN */
 #endif /* DISABLE_SLOWDOWN */
   }
 

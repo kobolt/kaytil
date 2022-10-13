@@ -118,6 +118,7 @@ void console_write(uint8_t value)
   case 0x1A:
     /* ANSI - Erase in Display */
     fprintf(stdout, "\e[2J");
+    /* Fallthrough! */
   case 0x1E:
     /* ANSI - Cursor Home */
     fprintf(stdout, "\e[H");
