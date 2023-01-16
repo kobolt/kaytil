@@ -106,3 +106,13 @@ w cpm22.hex
 
 Converting from the Intel hex format to binary can be done with "srec_cat" from the [SRecord](http://srecord.sourceforge.net/) package as seen in the Makefile(s).
 
+## Further Reading
+Information on my blog:
+* [Z80 CP/M 2.2 Emulator](https://kobolt.github.io/article-179.html)
+* [CP/M on the GR-SAKURA](https://kobolt.github.io/article-184.html)
+* [CP/M on the Raspberry Pi Pico](https://kobolt.github.io/article-196.html)
+* [More CP/M Emulator Ports](https://kobolt.github.io/article-205.html)
+
+YouTube video:
+* [Kaypro II games](https://www.youtube.com/watch?v=uovRWOjvs98)
+
