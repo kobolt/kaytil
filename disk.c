@@ -21,8 +21,9 @@ static disk_t disk[DISKS];
 
 void disk_init(void)
 {
+  int i;
   /* Create what CP/M sees as empty disks. */
-  for (int i = 0; i < DISKS; i++) {
+  for (i = 0; i < DISKS; i++) {
     memset(disk[i].data, 0xE5, DISK_SIZE);
   }
 }
@@ -53,7 +54,8 @@ int disk_image_load(uint8_t disk_no, const char *filename, bool write_changes)
 
 void disk_sys_write(mem_t *mem, uint16_t address, uint16_t size)
 {
-  for (int i = 0; i < DISKS; i++) {
+  int i;
+  for (i = 0; i < DISKS; i++) {
     /* Skip cold start loader in first sector. */
     mem_read_area(mem, address, &disk[i].data[DISK_SECTOR_SIZE], size);
   }

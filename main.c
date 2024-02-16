@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <unistd.h>
@@ -8,6 +9,9 @@
 #include <sys/time.h>
 #ifdef WINDOWS_SLOWDOWN
 #include <windows.h>
+#endif
+#ifdef _POSIX_C_SOURCE
+#include <getopt.h>
 #endif
 
 #include "z80.h"
@@ -234,13 +238,17 @@ int main(int argc, char *argv[])
   }
 
 #else /* !BUSYWAIT_SLOWDOWN */
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(struct sigaction));
+  sa.sa_handler = &sig_handler;
+
   struct itimerval new;
   new.it_value.tv_sec = 0;
   new.it_value.tv_usec = 10000;
   new.it_interval.tv_sec = 0;
   new.it_interval.tv_usec = 10000;
 
-  signal(SIGALRM, sig_handler);
+  sigaction(SIGALRM, &sa, NULL);
   setitimer(ITIMER_REAL, &new, NULL);
 
 #endif /* BUSYWAIT_SLOWDOWN */

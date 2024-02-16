@@ -10,6 +10,31 @@
 #include "io.h"
 #include "panic.h"
 
+/* Helper macros to access named unions and structs. */
+#define a(x)    (x)->u_af.s_af.a
+#define af(x)   (x)->u_af.af
+#define af_(x)  (x)->u_af_.af_
+#define b(x)    (x)->u_bc.s_bc.b
+#define bc(x)   (x)->u_bc.bc
+#define bc_(x)  (x)->u_bc_.bc_
+#define c(x)    (x)->u_bc.s_bc.c
+#define d(x)    (x)->u_de.s_de.d
+#define de(x)   (x)->u_de.de
+#define de_(x)  (x)->u_de_.de_
+#define e(x)    (x)->u_de.s_de.e
+#define f(x)    (x)->u_af.s_af.u_f.f
+#define flag(x) (x)->u_af.s_af.u_f.flag
+#define h(x)    (x)->u_hl.s_hl.h
+#define hl(x)   (x)->u_hl.hl
+#define hl_(x)  (x)->u_hl_.hl_
+#define ix(x)   (x)->u_ix.ix
+#define ixh(x)  (x)->u_ix.s_ix.ixh
+#define ixl(x)  (x)->u_ix.s_ix.ixl
+#define iy(x)   (x)->u_iy.iy
+#define iyh(x)  (x)->u_iy.s_iy.iyh
+#define iyl(x)  (x)->u_iy.s_iy.iyl
+#define l(x)    (x)->u_hl.s_hl.l
+
 
 
 typedef enum {
@@ -272,15 +297,15 @@ static void z80_trace(z80_t *z80, mem_t *mem, int no, const char *format, ...)
 
   n += snprintf(&buffer[n], Z80_TRACE_BUFFER_ENTRY - n,
     "%02x %04x %04x %04x %04x %04x %04x ",
-    z80->a, z80->bc, z80->de, z80->hl, z80->sp, z80->ix, z80->iy);
+    a(z80), bc(z80), de(z80), hl(z80), z80->sp, ix(z80), iy(z80));
     
   n += snprintf(&buffer[n], Z80_TRACE_BUFFER_ENTRY - n, "%c%c-%c-%c%c%c",
-    z80->flag.s  ? 'S' : '.',
-    z80->flag.z  ? 'Z' : '.',
-    z80->flag.h  ? 'H' : '.',
-    z80->flag.pv ? 'P' : '.',
-    z80->flag.n  ? 'N' : '.',
-    z80->flag.c  ? 'C' : '.');
+    flag(z80).s  ? 'S' : '.',
+    flag(z80).z  ? 'Z' : '.',
+    flag(z80).h  ? 'H' : '.',
+    flag(z80).pv ? 'P' : '.',
+    flag(z80).n  ? 'N' : '.',
+    flag(z80).c  ? 'C' : '.');
 
   snprintf(&buffer[n], Z80_TRACE_BUFFER_ENTRY - n, "\n");
 
@@ -329,15 +354,15 @@ void z80_dump(FILE *fh, z80_t *z80, mem_t *mem)
     "%02x %04x %04x %04x %04x %04x %04x ",
     z80->pc, mem_read(mem, z80->pc),     mem_read(mem, z80->pc + 1),
              mem_read(mem, z80->pc + 2), mem_read(mem, z80->pc + 3),
-    z80->a, z80->bc, z80->de, z80->hl, z80->sp, z80->ix, z80->iy);
+    a(z80), bc(z80), de(z80), hl(z80), z80->sp, ix(z80), iy(z80));
 
   fprintf(fh, "%c%c-%c-%c%c%c",
-    z80->flag.s  ? 'S' : '.',
-    z80->flag.z  ? 'Z' : '.',
-    z80->flag.h  ? 'H' : '.',
-    z80->flag.pv ? 'P' : '.',
-    z80->flag.n  ? 'N' : '.',
-    z80->flag.c  ? 'C' : '.');
+    flag(z80).s  ? 'S' : '.',
+    flag(z80).z  ? 'Z' : '.',
+    flag(z80).h  ? 'H' : '.',
+    flag(z80).pv ? 'P' : '.',
+    flag(z80).n  ? 'N' : '.',
+    flag(z80).c  ? 'C' : '.');
 
   fprintf(fh, "\n");
 }
@@ -345,21 +370,21 @@ void z80_dump(FILE *fh, z80_t *z80, mem_t *mem)
 
 
 
-static inline uint8_t reset_bit(uint8_t value, int bit_no)
+static uint8_t reset_bit(uint8_t value, int bit_no)
 {
   return value & ~(1 << bit_no);
 }
 
 
 
-static inline uint8_t set_bit(uint8_t value, int bit_no)
+static uint8_t set_bit(uint8_t value, int bit_no)
 {
   return value | (1 << bit_no);
 }
 
 
 
-static inline bool parity_even(uint8_t value)
+static bool parity_even(uint8_t value)
 {
   value ^= value >> 4;
   value ^= value >> 2;
@@ -369,368 +394,368 @@ static inline bool parity_even(uint8_t value)
 
 
 
-static inline void z80_add(z80_t *z80, uint8_t value)
+static void z80_add(z80_t *z80, uint8_t value)
 {
-  uint16_t result = z80->a + value;
-  z80->flag.h = ((z80->a & 0xF) + (value & 0xF)) & 0x10 ? 1 : 0;
-  z80->flag.pv = ((z80->a & 0x80) == (value  & 0x80)) &&
+  uint16_t result = a(z80) + value;
+  flag(z80).h = ((a(z80) & 0xF) + (value & 0xF)) & 0x10 ? 1 : 0;
+  flag(z80).pv = ((a(z80) & 0x80) == (value  & 0x80)) &&
                  ((value  & 0x80) != (result & 0x80)) ? 1 : 0;
-  z80->flag.n = 0;
-  z80->flag.c = (result & 0x100) ? 1 : 0;
-  z80->a = result;
-  z80->flag.s = (z80->a & 0x80) ? 1 : 0;
-  z80->flag.z = (z80->a == 0) ? 1 : 0;
+  flag(z80).n = 0;
+  flag(z80).c = (result & 0x100) ? 1 : 0;
+  a(z80) = result;
+  flag(z80).s = (a(z80) & 0x80) ? 1 : 0;
+  flag(z80).z = (a(z80) == 0) ? 1 : 0;
 }
 
 
 
-static inline void z80_adc(z80_t *z80, uint8_t value)
+static void z80_adc(z80_t *z80, uint8_t value)
 {
-  uint16_t result = z80->a + value + z80->flag.c;
-  z80->flag.h = (((z80->a & 0xF) + (value & 0xF)) + z80->flag.c) & 0x10 ? 1 : 0;
-  z80->flag.pv = ((z80->a & 0x80) == (value  & 0x80)) &&
+  uint16_t result = a(z80) + value + flag(z80).c;
+  flag(z80).h = (((a(z80) & 0xF) + (value & 0xF)) + flag(z80).c) & 0x10 ? 1 : 0;
+  flag(z80).pv = ((a(z80) & 0x80) == (value  & 0x80)) &&
                  ((value  & 0x80) != (result & 0x80)) ? 1 : 0;
-  z80->flag.n = 0;
-  z80->flag.c = (result & 0x100) ? 1 : 0;
-  z80->a = result;
-  z80->flag.s = (z80->a & 0x80) ? 1 : 0;
-  z80->flag.z = (z80->a == 0) ? 1 : 0;
+  flag(z80).n = 0;
+  flag(z80).c = (result & 0x100) ? 1 : 0;
+  a(z80) = result;
+  flag(z80).s = (a(z80) & 0x80) ? 1 : 0;
+  flag(z80).z = (a(z80) == 0) ? 1 : 0;
 }
 
 
 
-static inline void z80_sub(z80_t *z80, uint8_t value)
+static void z80_sub(z80_t *z80, uint8_t value)
 {
-  uint16_t result = z80->a - value;
-  z80->flag.h = ((z80->a & 0xF) - (value & 0xF)) & 0x10 ? 1 : 0;
-  z80->flag.pv = ((z80->a & 0x80) != (value  & 0x80)) &&
+  uint16_t result = a(z80) - value;
+  flag(z80).h = ((a(z80) & 0xF) - (value & 0xF)) & 0x10 ? 1 : 0;
+  flag(z80).pv = ((a(z80) & 0x80) != (value  & 0x80)) &&
                  ((value  & 0x80) == (result & 0x80)) ? 1 : 0;
-  z80->flag.n = 1;
-  z80->flag.c = (result & 0x100) ? 1 : 0;
-  z80->a = result;
-  z80->flag.s = (z80->a & 0x80) ? 1 : 0;
-  z80->flag.z = (z80->a == 0) ? 1 : 0;
+  flag(z80).n = 1;
+  flag(z80).c = (result & 0x100) ? 1 : 0;
+  a(z80) = result;
+  flag(z80).s = (a(z80) & 0x80) ? 1 : 0;
+  flag(z80).z = (a(z80) == 0) ? 1 : 0;
 }
 
 
 
-static inline void z80_sbc(z80_t *z80, uint8_t value)
+static void z80_sbc(z80_t *z80, uint8_t value)
 {
-  uint16_t result = z80->a - value - z80->flag.c;
-  z80->flag.h = (((z80->a & 0xF) - (value & 0xF)) - z80->flag.c) & 0x10 ? 1 : 0;
-  z80->flag.pv = ((z80->a & 0x80) != (value  & 0x80)) &&
+  uint16_t result = a(z80) - value - flag(z80).c;
+  flag(z80).h = (((a(z80) & 0xF) - (value & 0xF)) - flag(z80).c) & 0x10 ? 1 : 0;
+  flag(z80).pv = ((a(z80) & 0x80) != (value  & 0x80)) &&
                  ((value  & 0x80) == (result & 0x80)) ? 1 : 0;
-  z80->flag.n = 1;
-  z80->flag.c = (result & 0x100) ? 1 : 0;
-  z80->a = result;
-  z80->flag.s = (z80->a & 0x80) ? 1 : 0;
-  z80->flag.z = (z80->a == 0) ? 1 : 0;
+  flag(z80).n = 1;
+  flag(z80).c = (result & 0x100) ? 1 : 0;
+  a(z80) = result;
+  flag(z80).s = (a(z80) & 0x80) ? 1 : 0;
+  flag(z80).z = (a(z80) == 0) ? 1 : 0;
 }
 
 
 
-static inline void z80_and(z80_t *z80, uint8_t value)
+static void z80_and(z80_t *z80, uint8_t value)
 {
-  z80->a &= value;
-  z80->flag.s = (z80->a & 0x80) ? 1 : 0;
-  z80->flag.z = (z80->a == 0) ? 1 : 0;
-  z80->flag.h = 1;
-  z80->flag.pv = parity_even(z80->a);
-  z80->flag.n = 0;
-  z80->flag.c = 0;
+  a(z80) &= value;
+  flag(z80).s = (a(z80) & 0x80) ? 1 : 0;
+  flag(z80).z = (a(z80) == 0) ? 1 : 0;
+  flag(z80).h = 1;
+  flag(z80).pv = parity_even(a(z80));
+  flag(z80).n = 0;
+  flag(z80).c = 0;
 }
 
 
 
-static inline void z80_or(z80_t *z80, uint8_t value)
+static void z80_or(z80_t *z80, uint8_t value)
 {
-  z80->a |= value;
-  z80->flag.s = (z80->a & 0x80) ? 1 : 0;
-  z80->flag.z = (z80->a == 0) ? 1 : 0;
-  z80->flag.h = 0;
-  z80->flag.pv = parity_even(z80->a);
-  z80->flag.n = 0;
-  z80->flag.c = 0;
+  a(z80) |= value;
+  flag(z80).s = (a(z80) & 0x80) ? 1 : 0;
+  flag(z80).z = (a(z80) == 0) ? 1 : 0;
+  flag(z80).h = 0;
+  flag(z80).pv = parity_even(a(z80));
+  flag(z80).n = 0;
+  flag(z80).c = 0;
 }
 
 
 
-static inline void z80_xor(z80_t *z80, uint8_t value)
+static void z80_xor(z80_t *z80, uint8_t value)
 {
-  z80->a ^= value;
-  z80->flag.s = (z80->a & 0x80) ? 1 : 0;
-  z80->flag.z = (z80->a == 0) ? 1 : 0;
-  z80->flag.h = 0;
-  z80->flag.pv = parity_even(z80->a);
-  z80->flag.n = 0;
-  z80->flag.c = 0;
+  a(z80) ^= value;
+  flag(z80).s = (a(z80) & 0x80) ? 1 : 0;
+  flag(z80).z = (a(z80) == 0) ? 1 : 0;
+  flag(z80).h = 0;
+  flag(z80).pv = parity_even(a(z80));
+  flag(z80).n = 0;
+  flag(z80).c = 0;
 }
 
 
 
-static inline void z80_compare(z80_t *z80, uint8_t value)
+static void z80_compare(z80_t *z80, uint8_t value)
 {
-  uint16_t result = z80->a - value;
-  z80->flag.h = ((z80->a & 0xF) - (value & 0xF)) & 0x10 ? 1 : 0;
-  z80->flag.pv = ((z80->a & 0x80) != (value  & 0x80)) &&
+  uint16_t result = a(z80) - value;
+  flag(z80).h = ((a(z80) & 0xF) - (value & 0xF)) & 0x10 ? 1 : 0;
+  flag(z80).pv = ((a(z80) & 0x80) != (value  & 0x80)) &&
                  ((value  & 0x80) == (result & 0x80)) ? 1 : 0;
-  z80->flag.n = 1;
-  z80->flag.c = (result & 0x100) ? 1 : 0;
-  z80->flag.s = (result & 0x80) ? 1 : 0;
-  z80->flag.z = (result == 0) ? 1 : 0;
+  flag(z80).n = 1;
+  flag(z80).c = (result & 0x100) ? 1 : 0;
+  flag(z80).s = (result & 0x80) ? 1 : 0;
+  flag(z80).z = (result == 0) ? 1 : 0;
 }
 
 
 
-static inline void z80_add_16(z80_t *z80, uint16_t *reg, uint16_t value)
+static void z80_add_16(z80_t *z80, uint16_t *reg, uint16_t value)
 {
   uint32_t result = *reg + value;
-  z80->flag.h = ((*reg & 0xFFF) + (value & 0xFFF)) & 0x1000 ? 1 : 0;
-  z80->flag.n = 0;
-  z80->flag.c = (result & 0x10000) ? 1 : 0;
+  flag(z80).h = ((*reg & 0xFFF) + (value & 0xFFF)) & 0x1000 ? 1 : 0;
+  flag(z80).n = 0;
+  flag(z80).c = (result & 0x10000) ? 1 : 0;
   *reg = result;
 }
 
 
 
-static inline void z80_adc_16(z80_t *z80, uint16_t *reg, uint16_t value)
+static void z80_adc_16(z80_t *z80, uint16_t *reg, uint16_t value)
 {
-  uint32_t result = *reg + value + z80->flag.c;
-  z80->flag.h = ((*reg & 0xFFF) + (value & 0xFFF)) & 0x1000 ? 1 : 0;
-  z80->flag.pv = ((*reg  & 0x8000) == (value  & 0x8000)) &&
+  uint32_t result = *reg + value + flag(z80).c;
+  flag(z80).h = ((*reg & 0xFFF) + (value & 0xFFF)) & 0x1000 ? 1 : 0;
+  flag(z80).pv = ((*reg  & 0x8000) == (value  & 0x8000)) &&
                  ((value & 0x8000) != (result & 0x8000)) ? 1 : 0;
-  z80->flag.n = 0;
-  z80->flag.c = (result & 0x10000) ? 1 : 0;
+  flag(z80).n = 0;
+  flag(z80).c = (result & 0x10000) ? 1 : 0;
   *reg = result;
-  z80->flag.s = (*reg & 0x8000) ? 1 : 0;
-  z80->flag.z = (*reg == 0) ? 1 : 0;
+  flag(z80).s = (*reg & 0x8000) ? 1 : 0;
+  flag(z80).z = (*reg == 0) ? 1 : 0;
 }
 
 
 
-static inline void z80_sbc_16(z80_t *z80, uint16_t *reg, uint16_t value)
+static void z80_sbc_16(z80_t *z80, uint16_t *reg, uint16_t value)
 {
-  uint32_t result = *reg - value - z80->flag.c;
-  z80->flag.h = ((*reg & 0xFFF) - (value & 0xFFF)) & 0x1000 ? 1 : 0;
-  z80->flag.pv = ((*reg  & 0x8000) != (value  & 0x8000)) &&
+  uint32_t result = *reg - value - flag(z80).c;
+  flag(z80).h = ((*reg & 0xFFF) - (value & 0xFFF)) & 0x1000 ? 1 : 0;
+  flag(z80).pv = ((*reg  & 0x8000) != (value  & 0x8000)) &&
                  ((value & 0x8000) == (result & 0x8000)) ? 1 : 0;
-  z80->flag.n = 1;
-  z80->flag.c = (result & 0x10000) ? 1 : 0;
+  flag(z80).n = 1;
+  flag(z80).c = (result & 0x10000) ? 1 : 0;
   *reg = result;
-  z80->flag.s = (*reg & 0x8000) ? 1 : 0;
-  z80->flag.z = (*reg == 0) ? 1 : 0;
+  flag(z80).s = (*reg & 0x8000) ? 1 : 0;
+  flag(z80).z = (*reg == 0) ? 1 : 0;
 }
 
 
 
-static inline void z80_bit(z80_t *z80, uint8_t value, int bit_no)
+static void z80_bit(z80_t *z80, uint8_t value, int bit_no)
 {
-  z80->flag.z = !((value >> bit_no) & 0x1) ? 1 : 0;
-  z80->flag.h = 1;
-  z80->flag.n = 0;
+  flag(z80).z = !((value >> bit_no) & 0x1) ? 1 : 0;
+  flag(z80).h = 1;
+  flag(z80).n = 0;
 }
 
 
 
-static inline void z80_cpd(z80_t *z80, mem_t *mem)
+static void z80_cpd(z80_t *z80, mem_t *mem)
 {
-  bool old_c = z80->flag.c;
-  z80_compare(z80, mem_read(mem, z80->hl));
-  z80->hl--;
-  z80->bc--;
-  z80->flag.pv = (z80->bc != 0) ? 1 : 0;
-  z80->flag.c = old_c;
+  bool old_c = flag(z80).c;
+  z80_compare(z80, mem_read(mem, hl(z80)));
+  hl(z80)--;
+  bc(z80)--;
+  flag(z80).pv = (bc(z80) != 0) ? 1 : 0;
+  flag(z80).c = old_c;
 }
 
 
 
-static inline void z80_cpi(z80_t *z80, mem_t *mem)
+static void z80_cpi(z80_t *z80, mem_t *mem)
 {
-  bool old_c = z80->flag.c;
-  z80_compare(z80, mem_read(mem, z80->hl));
-  z80->hl++;
-  z80->bc--;
-  z80->flag.pv = (z80->bc != 0) ? 1 : 0;
-  z80->flag.c = old_c;
+  bool old_c = flag(z80).c;
+  z80_compare(z80, mem_read(mem, hl(z80)));
+  hl(z80)++;
+  bc(z80)--;
+  flag(z80).pv = (bc(z80) != 0) ? 1 : 0;
+  flag(z80).c = old_c;
 }
 
 
 
-static inline void z80_ldd(z80_t *z80, mem_t *mem)
+static void z80_ldd(z80_t *z80, mem_t *mem)
 {
-  mem_write(mem, z80->de, mem_read(mem, z80->hl));
-  z80->de--;
-  z80->hl--;
-  z80->bc--;
-  z80->flag.h = 0;
-  z80->flag.pv = (z80->bc != 0) ? 1 : 0;
-  z80->flag.n = 0;
+  mem_write(mem, de(z80), mem_read(mem, hl(z80)));
+  de(z80)--;
+  hl(z80)--;
+  bc(z80)--;
+  flag(z80).h = 0;
+  flag(z80).pv = (bc(z80) != 0) ? 1 : 0;
+  flag(z80).n = 0;
 }
 
 
 
-static inline void z80_ldi(z80_t *z80, mem_t *mem)
+static void z80_ldi(z80_t *z80, mem_t *mem)
 {
-  mem_write(mem, z80->de, mem_read(mem, z80->hl));
-  z80->de++;
-  z80->hl++;
-  z80->bc--;
-  z80->flag.h = 0;
-  z80->flag.pv = (z80->bc != 0) ? 1 : 0;
-  z80->flag.n = 0;
+  mem_write(mem, de(z80), mem_read(mem, hl(z80)));
+  de(z80)++;
+  hl(z80)++;
+  bc(z80)--;
+  flag(z80).h = 0;
+  flag(z80).pv = (bc(z80) != 0) ? 1 : 0;
+  flag(z80).n = 0;
 }
 
 
 
-static inline uint8_t z80_inc(z80_t *z80, uint8_t input)
+static uint8_t z80_inc(z80_t *z80, uint8_t input)
 {
   uint8_t output;
   output = input + 1;
-  z80->flag.s = (output & 0x80) ? 1 : 0;
-  z80->flag.z = (output == 0) ? 1 : 0;
-  z80->flag.h = !(output & 0xF) ? 1 : 0;
-  z80->flag.pv = (input == 0x7F) ? 1 : 0;
-  z80->flag.n = 0;
+  flag(z80).s = (output & 0x80) ? 1 : 0;
+  flag(z80).z = (output == 0) ? 1 : 0;
+  flag(z80).h = !(output & 0xF) ? 1 : 0;
+  flag(z80).pv = (input == 0x7F) ? 1 : 0;
+  flag(z80).n = 0;
   return output;
 }
 
 
 
-static inline uint8_t z80_dec(z80_t *z80, uint8_t input)
+static uint8_t z80_dec(z80_t *z80, uint8_t input)
 {
   uint8_t output;
   output = input - 1;
-  z80->flag.s = (output & 0x80) ? 1 : 0;
-  z80->flag.z = (output == 0) ? 1 : 0;
-  z80->flag.h = !(input & 0xF) ? 1 : 0;
-  z80->flag.pv = (input == 0x80) ? 1 : 0;
-  z80->flag.n = 1;
+  flag(z80).s = (output & 0x80) ? 1 : 0;
+  flag(z80).z = (output == 0) ? 1 : 0;
+  flag(z80).h = !(input & 0xF) ? 1 : 0;
+  flag(z80).pv = (input == 0x80) ? 1 : 0;
+  flag(z80).n = 1;
   return output;
 }
 
 
 
-static inline uint8_t z80_rlc(z80_t *z80, uint8_t input)
+static uint8_t z80_rlc(z80_t *z80, uint8_t input)
 {
   uint8_t output = input << 1;
   if (input & 0x80) {
     output |= 0x01;
   }
-  z80->flag.s = (output & 0x80) ? 1 : 0;
-  z80->flag.z = (output == 0) ? 1 : 0;
-  z80->flag.h = 0;
-  z80->flag.pv = parity_even(output);
-  z80->flag.n = 0;
-  z80->flag.c = (input & 0x80) ? 1 : 0;
+  flag(z80).s = (output & 0x80) ? 1 : 0;
+  flag(z80).z = (output == 0) ? 1 : 0;
+  flag(z80).h = 0;
+  flag(z80).pv = parity_even(output);
+  flag(z80).n = 0;
+  flag(z80).c = (input & 0x80) ? 1 : 0;
   return output;
 }
 
 
 
-static inline uint8_t z80_rrc(z80_t *z80, uint8_t input)
+static uint8_t z80_rrc(z80_t *z80, uint8_t input)
 {
   uint8_t output = input >> 1;
   if (input & 0x01) {
     output |= 0x80;
   }
-  z80->flag.s = (output & 0x80) ? 1 : 0;
-  z80->flag.z = (output == 0) ? 1 : 0;
-  z80->flag.h = 0;
-  z80->flag.pv = parity_even(output);
-  z80->flag.n = 0;
-  z80->flag.c = (input & 0x01) ? 1 : 0;
+  flag(z80).s = (output & 0x80) ? 1 : 0;
+  flag(z80).z = (output == 0) ? 1 : 0;
+  flag(z80).h = 0;
+  flag(z80).pv = parity_even(output);
+  flag(z80).n = 0;
+  flag(z80).c = (input & 0x01) ? 1 : 0;
   return output;
 }
 
 
 
-static inline uint8_t z80_rl(z80_t *z80, uint8_t input)
+static uint8_t z80_rl(z80_t *z80, uint8_t input)
 {
   uint8_t output = input << 1;
-  if (z80->flag.c) {
+  if (flag(z80).c) {
     output |= 0x01;
   }
-  z80->flag.s = (output & 0x80) ? 1 : 0;
-  z80->flag.z = (output == 0) ? 1 : 0;
-  z80->flag.h = 0;
-  z80->flag.pv = parity_even(output);
-  z80->flag.n = 0;
-  z80->flag.c = (input & 0x80) ? 1 : 0;
+  flag(z80).s = (output & 0x80) ? 1 : 0;
+  flag(z80).z = (output == 0) ? 1 : 0;
+  flag(z80).h = 0;
+  flag(z80).pv = parity_even(output);
+  flag(z80).n = 0;
+  flag(z80).c = (input & 0x80) ? 1 : 0;
   return output;
 }
 
 
 
-static inline uint8_t z80_rr(z80_t *z80, uint8_t input)
+static uint8_t z80_rr(z80_t *z80, uint8_t input)
 {
   uint8_t output = input >> 1;
-  if (z80->flag.c) {
+  if (flag(z80).c) {
     output |= 0x80;
   }
-  z80->flag.s = (output & 0x80) ? 1 : 0;
-  z80->flag.z = (output == 0) ? 1 : 0;
-  z80->flag.h = 0;
-  z80->flag.pv = parity_even(output);
-  z80->flag.n = 0;
-  z80->flag.c = (input & 0x01) ? 1 : 0;
+  flag(z80).s = (output & 0x80) ? 1 : 0;
+  flag(z80).z = (output == 0) ? 1 : 0;
+  flag(z80).h = 0;
+  flag(z80).pv = parity_even(output);
+  flag(z80).n = 0;
+  flag(z80).c = (input & 0x01) ? 1 : 0;
   return output;
 }
 
 
 
-static inline uint8_t z80_sla(z80_t *z80, uint8_t input)
+static uint8_t z80_sla(z80_t *z80, uint8_t input)
 {
   uint8_t output = input << 1;
-  z80->flag.s = (output & 0x80) ? 1 : 0;
-  z80->flag.z = (output == 0) ? 1 : 0;
-  z80->flag.h = 0;
-  z80->flag.pv = parity_even(output);
-  z80->flag.n = 0;
-  z80->flag.c = (input & 0x80) ? 1 : 0;
+  flag(z80).s = (output & 0x80) ? 1 : 0;
+  flag(z80).z = (output == 0) ? 1 : 0;
+  flag(z80).h = 0;
+  flag(z80).pv = parity_even(output);
+  flag(z80).n = 0;
+  flag(z80).c = (input & 0x80) ? 1 : 0;
   return output;
 }
 
 
 
-static inline uint8_t z80_sra(z80_t *z80, uint8_t input)
+static uint8_t z80_sra(z80_t *z80, uint8_t input)
 {
   uint8_t output = input >> 1;
   output |= input & 0x80;
-  z80->flag.s = (output & 0x80) ? 1 : 0;
-  z80->flag.z = (output == 0) ? 1 : 0;
-  z80->flag.h = 0;
-  z80->flag.pv = parity_even(output);
-  z80->flag.n = 0;
-  z80->flag.c = (input & 0x01) ? 1 : 0;
+  flag(z80).s = (output & 0x80) ? 1 : 0;
+  flag(z80).z = (output == 0) ? 1 : 0;
+  flag(z80).h = 0;
+  flag(z80).pv = parity_even(output);
+  flag(z80).n = 0;
+  flag(z80).c = (input & 0x01) ? 1 : 0;
   return output;
 }
 
 
 
-static inline uint8_t z80_sll(z80_t *z80, uint8_t input)
+static uint8_t z80_sll(z80_t *z80, uint8_t input)
 {
   uint8_t output = input << 1;
   output |= 0x01;
-  z80->flag.s = (output & 0x80) ? 1 : 0;
-  z80->flag.z = (output == 0) ? 1 : 0;
-  z80->flag.h = 0;
-  z80->flag.pv = parity_even(output);
-  z80->flag.n = 0;
-  z80->flag.c = (input & 0x80) ? 1 : 0;
+  flag(z80).s = (output & 0x80) ? 1 : 0;
+  flag(z80).z = (output == 0) ? 1 : 0;
+  flag(z80).h = 0;
+  flag(z80).pv = parity_even(output);
+  flag(z80).n = 0;
+  flag(z80).c = (input & 0x80) ? 1 : 0;
   return output;
 }
 
 
 
-static inline uint8_t z80_srl(z80_t *z80, uint8_t input)
+static uint8_t z80_srl(z80_t *z80, uint8_t input)
 {
   uint8_t output = input >> 1;
-  z80->flag.s = (output & 0x80) ? 1 : 0;
-  z80->flag.z = (output == 0) ? 1 : 0;
-  z80->flag.h = 0;
-  z80->flag.pv = parity_even(output);
-  z80->flag.n = 0;
-  z80->flag.c = (input & 0x01) ? 1 : 0;
+  flag(z80).s = (output & 0x80) ? 1 : 0;
+  flag(z80).z = (output == 0) ? 1 : 0;
+  flag(z80).h = 0;
+  flag(z80).pv = parity_even(output);
+  flag(z80).n = 0;
+  flag(z80).c = (input & 0x01) ? 1 : 0;
   return output;
 }
 
@@ -757,44 +782,44 @@ void z80_execute(z80_t *z80, mem_t *mem)
     /* DDCB prefixed */
     int8_t displacement = mc[2];
     uint8_t x =  mc[3] >> 6;
-    uint8_t y = (mc[3] >> 3) & 0b111;
-    uint8_t z =  mc[3] & 0b111;
+    uint8_t y = (mc[3] >> 3) & 7;
+    uint8_t z =  mc[3] & 7;
 
     if (0 == x && 6 == z) {
       dt_t dt = dt_rot[y];
       z80_trace(z80, mem, 4, "%s (IX)", dt_text(dt));
       switch (dt) {
       case DT_ROT_RLC: 
-        mem_write(mem, z80->ix + displacement,
-          z80_rlc(z80, mem_read(mem, z80->ix + displacement)));
+        mem_write(mem, ix(z80) + displacement,
+          z80_rlc(z80, mem_read(mem, ix(z80) + displacement)));
         break;
       case DT_ROT_RRC: 
-        mem_write(mem, z80->ix + displacement,
-          z80_rrc(z80, mem_read(mem, z80->ix + displacement)));
+        mem_write(mem, ix(z80) + displacement,
+          z80_rrc(z80, mem_read(mem, ix(z80) + displacement)));
         break;
       case DT_ROT_RL:  
-        mem_write(mem, z80->ix + displacement,
-          z80_rl(z80, mem_read(mem, z80->ix + displacement)));
+        mem_write(mem, ix(z80) + displacement,
+          z80_rl(z80, mem_read(mem, ix(z80) + displacement)));
         break;
       case DT_ROT_RR:  
-        mem_write(mem, z80->ix + displacement,
-          z80_rr(z80, mem_read(mem, z80->ix + displacement)));
+        mem_write(mem, ix(z80) + displacement,
+          z80_rr(z80, mem_read(mem, ix(z80) + displacement)));
         break;
       case DT_ROT_SLA: 
-        mem_write(mem, z80->ix + displacement,
-          z80_sla(z80, mem_read(mem, z80->ix + displacement)));
+        mem_write(mem, ix(z80) + displacement,
+          z80_sla(z80, mem_read(mem, ix(z80) + displacement)));
         break;
       case DT_ROT_SRA: 
-        mem_write(mem, z80->ix + displacement,
-          z80_sra(z80, mem_read(mem, z80->ix + displacement)));
+        mem_write(mem, ix(z80) + displacement,
+          z80_sra(z80, mem_read(mem, ix(z80) + displacement)));
         break;
       case DT_ROT_SLL: 
-        mem_write(mem, z80->ix + displacement,
-          z80_sll(z80, mem_read(mem, z80->ix + displacement)));
+        mem_write(mem, ix(z80) + displacement,
+          z80_sll(z80, mem_read(mem, ix(z80) + displacement)));
         break;
       case DT_ROT_SRL: 
-        mem_write(mem, z80->ix + displacement,
-          z80_srl(z80, mem_read(mem, z80->ix + displacement)));
+        mem_write(mem, ix(z80) + displacement,
+          z80_srl(z80, mem_read(mem, ix(z80) + displacement)));
         break;
       default: break;
       }
@@ -802,19 +827,19 @@ void z80_execute(z80_t *z80, mem_t *mem)
 
     } else if (1 == x) {
       z80_trace(z80, mem, 4, "BIT %d,(IX)", y);
-      z80_bit(z80, mem_read(mem, z80->ix + displacement), y);
+      z80_bit(z80, mem_read(mem, ix(z80) + displacement), y);
       z80->pc += 4;
 
     } else if (2 == x && 6 == z) {
       z80_trace(z80, mem, 4, "RES %d,(IX)", y);
-      mem_write(mem, z80->ix + displacement,
-        reset_bit(mem_read(mem, z80->ix + displacement), y));
+      mem_write(mem, ix(z80) + displacement,
+        reset_bit(mem_read(mem, ix(z80) + displacement), y));
       z80->pc += 4;
 
     } else if (3 == x && 6 == z) {
       z80_trace(z80, mem, 4, "SET %d,(IX)", y);
-      mem_write(mem, z80->ix + displacement,
-        set_bit(mem_read(mem, z80->ix + displacement), y));
+      mem_write(mem, ix(z80) + displacement,
+        set_bit(mem_read(mem, ix(z80) + displacement), y));
       z80->pc += 4;
 
     } else {
@@ -826,44 +851,44 @@ void z80_execute(z80_t *z80, mem_t *mem)
     /* FDCB prefixed */
     int8_t displacement = mc[2];
     uint8_t x =  mc[3] >> 6;
-    uint8_t y = (mc[3] >> 3) & 0b111;
-    uint8_t z =  mc[3] & 0b111;
+    uint8_t y = (mc[3] >> 3) & 7;
+    uint8_t z =  mc[3] & 7;
 
     if (0 == x && 6 == z) {
       dt_t dt = dt_rot[y];
       z80_trace(z80, mem, 4, "%s (IY)", dt_text(dt));
       switch (dt) {
       case DT_ROT_RLC: 
-        mem_write(mem, z80->iy + displacement,
-          z80_rlc(z80, mem_read(mem, z80->iy + displacement)));
+        mem_write(mem, iy(z80) + displacement,
+          z80_rlc(z80, mem_read(mem, iy(z80) + displacement)));
         break;
       case DT_ROT_RRC: 
-        mem_write(mem, z80->iy + displacement,
-          z80_rrc(z80, mem_read(mem, z80->iy + displacement)));
+        mem_write(mem, iy(z80) + displacement,
+          z80_rrc(z80, mem_read(mem, iy(z80) + displacement)));
         break;
       case DT_ROT_RL:  
-        mem_write(mem, z80->iy + displacement,
-          z80_rl(z80, mem_read(mem, z80->iy + displacement)));
+        mem_write(mem, iy(z80) + displacement,
+          z80_rl(z80, mem_read(mem, iy(z80) + displacement)));
         break;
       case DT_ROT_RR:  
-        mem_write(mem, z80->iy + displacement,
-          z80_rr(z80, mem_read(mem, z80->iy + displacement)));
+        mem_write(mem, iy(z80) + displacement,
+          z80_rr(z80, mem_read(mem, iy(z80) + displacement)));
         break;
       case DT_ROT_SLA: 
-        mem_write(mem, z80->iy + displacement,
-          z80_sla(z80, mem_read(mem, z80->iy + displacement)));
+        mem_write(mem, iy(z80) + displacement,
+          z80_sla(z80, mem_read(mem, iy(z80) + displacement)));
         break;
       case DT_ROT_SRA: 
-        mem_write(mem, z80->iy + displacement,
-          z80_sra(z80, mem_read(mem, z80->iy + displacement)));
+        mem_write(mem, iy(z80) + displacement,
+          z80_sra(z80, mem_read(mem, iy(z80) + displacement)));
         break;
       case DT_ROT_SLL: 
-        mem_write(mem, z80->iy + displacement,
-          z80_sll(z80, mem_read(mem, z80->iy + displacement)));
+        mem_write(mem, iy(z80) + displacement,
+          z80_sll(z80, mem_read(mem, iy(z80) + displacement)));
         break;
       case DT_ROT_SRL: 
-        mem_write(mem, z80->iy + displacement,
-          z80_srl(z80, mem_read(mem, z80->iy + displacement)));
+        mem_write(mem, iy(z80) + displacement,
+          z80_srl(z80, mem_read(mem, iy(z80) + displacement)));
         break;
       default: break;
       }
@@ -871,19 +896,19 @@ void z80_execute(z80_t *z80, mem_t *mem)
 
     } else if (1 == x) {
       z80_trace(z80, mem, 4, "BIT %d,(IY)", y);
-      z80_bit(z80, mem_read(mem, z80->iy + displacement), y);
+      z80_bit(z80, mem_read(mem, iy(z80) + displacement), y);
       z80->pc += 4;
 
     } else if (2 == x && 6 == z) {
       z80_trace(z80, mem, 4, "RES %d,(IY)", y);
-      mem_write(mem, z80->iy + displacement,
-        reset_bit(mem_read(mem, z80->iy + displacement), y));
+      mem_write(mem, iy(z80) + displacement,
+        reset_bit(mem_read(mem, iy(z80) + displacement), y));
       z80->pc += 4;
 
     } else if (3 == x && 6 == z) {
       z80_trace(z80, mem, 4, "SET %d,(IY)", y);
-      mem_write(mem, z80->iy + displacement,
-        set_bit(mem_read(mem, z80->iy + displacement), y));
+      mem_write(mem, iy(z80) + displacement,
+        set_bit(mem_read(mem, iy(z80) + displacement), y));
       z80->pc += 4;
 
     } else {
@@ -894,8 +919,8 @@ void z80_execute(z80_t *z80, mem_t *mem)
   } else if (mc[0] == 0xCB) {
     /* CB prefixed */
     uint8_t x =  mc[1] >> 6;
-    uint8_t y = (mc[1] >> 3) & 0b111;
-    uint8_t z =  mc[1] & 0b111;
+    uint8_t y = (mc[1] >> 3) & 7;
+    uint8_t z =  mc[1] & 7;
 
     if (0 == x) {
       dt_t dt_op = dt_rot[y];
@@ -903,14 +928,14 @@ void z80_execute(z80_t *z80, mem_t *mem)
       z80_trace(z80, mem, 2, "%s %s", dt_text(dt_op), dt_text(dt_reg));
       uint8_t value = 0;
       switch (dt_reg) {
-      case DT_R_B:   value = z80->b; break;
-      case DT_R_C:   value = z80->c; break;
-      case DT_R_D:   value = z80->d; break;
-      case DT_R_E:   value = z80->e; break;
-      case DT_R_H:   value = z80->h; break;
-      case DT_R_L:   value = z80->l; break;
-      case DT_R_HLI: value = mem_read(mem, z80->hl); break;
-      case DT_R_A:   value = z80->a; break;
+      case DT_R_B:   value = b(z80); break;
+      case DT_R_C:   value = c(z80); break;
+      case DT_R_D:   value = d(z80); break;
+      case DT_R_E:   value = e(z80); break;
+      case DT_R_H:   value = h(z80); break;
+      case DT_R_L:   value = l(z80); break;
+      case DT_R_HLI: value = mem_read(mem, hl(z80)); break;
+      case DT_R_A:   value = a(z80); break;
       default: break;
       }
       switch (dt_op) {
@@ -925,14 +950,14 @@ void z80_execute(z80_t *z80, mem_t *mem)
       default: break;
       }
       switch (dt_reg) {
-      case DT_R_B:   z80->b = value; break;
-      case DT_R_C:   z80->c = value; break;
-      case DT_R_D:   z80->d = value; break;
-      case DT_R_E:   z80->e = value; break;
-      case DT_R_H:   z80->h = value; break;
-      case DT_R_L:   z80->l = value; break;
-      case DT_R_HLI: mem_write(mem, z80->hl, value); break;
-      case DT_R_A:   z80->a = value; break;
+      case DT_R_B:   b(z80) = value; break;
+      case DT_R_C:   c(z80) = value; break;
+      case DT_R_D:   d(z80) = value; break;
+      case DT_R_E:   e(z80) = value; break;
+      case DT_R_H:   h(z80) = value; break;
+      case DT_R_L:   l(z80) = value; break;
+      case DT_R_HLI: mem_write(mem, hl(z80), value); break;
+      case DT_R_A:   a(z80) = value; break;
       default: break;
       }
       z80->pc += 2;
@@ -941,14 +966,14 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt = dt_r[z];
       z80_trace(z80, mem, 2, "BIT %d,%s", y, dt_text(dt));
       switch (dt) {
-      case DT_R_B:   z80_bit(z80, z80->b, y); break;
-      case DT_R_C:   z80_bit(z80, z80->c, y); break;
-      case DT_R_D:   z80_bit(z80, z80->d, y); break;
-      case DT_R_E:   z80_bit(z80, z80->e, y); break;
-      case DT_R_H:   z80_bit(z80, z80->h, y); break;
-      case DT_R_L:   z80_bit(z80, z80->l, y); break;
-      case DT_R_HLI: z80_bit(z80, mem_read(mem, z80->hl), y); break;
-      case DT_R_A:   z80_bit(z80, z80->a, y); break;
+      case DT_R_B:   z80_bit(z80, b(z80), y); break;
+      case DT_R_C:   z80_bit(z80, c(z80), y); break;
+      case DT_R_D:   z80_bit(z80, d(z80), y); break;
+      case DT_R_E:   z80_bit(z80, e(z80), y); break;
+      case DT_R_H:   z80_bit(z80, h(z80), y); break;
+      case DT_R_L:   z80_bit(z80, l(z80), y); break;
+      case DT_R_HLI: z80_bit(z80, mem_read(mem, hl(z80)), y); break;
+      case DT_R_A:   z80_bit(z80, a(z80), y); break;
       default: break;
       }
       z80->pc += 2;
@@ -957,16 +982,16 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt = dt_r[z];
       z80_trace(z80, mem, 2, "RES %d,%s", y, dt_text(dt));
       switch (dt) {
-      case DT_R_B:   z80->b = reset_bit(z80->b, y); break;
-      case DT_R_C:   z80->c = reset_bit(z80->c, y); break;
-      case DT_R_D:   z80->d = reset_bit(z80->d, y); break;
-      case DT_R_E:   z80->e = reset_bit(z80->e, y); break;
-      case DT_R_H:   z80->h = reset_bit(z80->h, y); break;
-      case DT_R_L:   z80->l = reset_bit(z80->l, y); break;
+      case DT_R_B:   b(z80) = reset_bit(b(z80), y); break;
+      case DT_R_C:   c(z80) = reset_bit(c(z80), y); break;
+      case DT_R_D:   d(z80) = reset_bit(d(z80), y); break;
+      case DT_R_E:   e(z80) = reset_bit(e(z80), y); break;
+      case DT_R_H:   h(z80) = reset_bit(h(z80), y); break;
+      case DT_R_L:   l(z80) = reset_bit(l(z80), y); break;
       case DT_R_HLI:
-        mem_write(mem, z80->hl,
-          reset_bit(mem_read(mem, z80->hl), y)); break;
-      case DT_R_A:   z80->a = reset_bit(z80->a, y); break;
+        mem_write(mem, hl(z80),
+          reset_bit(mem_read(mem, hl(z80)), y)); break;
+      case DT_R_A:   a(z80) = reset_bit(a(z80), y); break;
       default: break;
       }
       z80->pc += 2;
@@ -975,16 +1000,16 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt = dt_r[z];
       z80_trace(z80, mem, 2, "SET %d,%s", y, dt_text(dt));
       switch (dt) {
-      case DT_R_B:   z80->b = set_bit(z80->b, y); break;
-      case DT_R_C:   z80->c = set_bit(z80->c, y); break;
-      case DT_R_D:   z80->d = set_bit(z80->d, y); break;
-      case DT_R_E:   z80->e = set_bit(z80->e, y); break;
-      case DT_R_H:   z80->h = set_bit(z80->h, y); break;
-      case DT_R_L:   z80->l = set_bit(z80->l, y); break;
+      case DT_R_B:   b(z80) = set_bit(b(z80), y); break;
+      case DT_R_C:   c(z80) = set_bit(c(z80), y); break;
+      case DT_R_D:   d(z80) = set_bit(d(z80), y); break;
+      case DT_R_E:   e(z80) = set_bit(e(z80), y); break;
+      case DT_R_H:   h(z80) = set_bit(h(z80), y); break;
+      case DT_R_L:   l(z80) = set_bit(l(z80), y); break;
       case DT_R_HLI:
-        mem_write(mem, z80->hl,
-          set_bit(mem_read(mem, z80->hl), y)); break;
-      case DT_R_A:   z80->a = set_bit(z80->a, y); break;
+        mem_write(mem, hl(z80),
+          set_bit(mem_read(mem, hl(z80)), y)); break;
+      case DT_R_A:   a(z80) = set_bit(a(z80), y); break;
       default: break;
       }
       z80->pc += 2;
@@ -997,8 +1022,8 @@ void z80_execute(z80_t *z80, mem_t *mem)
   } else if (mc[0] == 0xED) {
     /* ED prefixed */
     uint8_t x =  mc[1] >> 6;
-    uint8_t y = (mc[1] >> 3) & 0b111;
-    uint8_t z =  mc[1] & 0b111;
+    uint8_t y = (mc[1] >> 3) & 7;
+    uint8_t z =  mc[1] & 7;
     uint8_t p = y >> 1;
     uint8_t q = y % 2;
 
@@ -1006,13 +1031,13 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt = dt_r[y];
       z80_trace(z80, mem, 2, "OUT (C),%s", dt_text(dt));
       switch (dt) {
-      case DT_R_B: io_write(z80->c, z80->b, z80->b, mem); break;
-      case DT_R_C: io_write(z80->c, z80->b, z80->c, mem); break;
-      case DT_R_D: io_write(z80->c, z80->b, z80->d, mem); break;
-      case DT_R_E: io_write(z80->c, z80->b, z80->e, mem); break;
-      case DT_R_H: io_write(z80->c, z80->b, z80->h, mem); break;
-      case DT_R_L: io_write(z80->c, z80->b, z80->l, mem); break;
-      case DT_R_A: io_write(z80->c, z80->b, z80->a, mem); break;
+      case DT_R_B: io_write(c(z80), b(z80), b(z80), mem); break;
+      case DT_R_C: io_write(c(z80), b(z80), c(z80), mem); break;
+      case DT_R_D: io_write(c(z80), b(z80), d(z80), mem); break;
+      case DT_R_E: io_write(c(z80), b(z80), e(z80), mem); break;
+      case DT_R_H: io_write(c(z80), b(z80), h(z80), mem); break;
+      case DT_R_L: io_write(c(z80), b(z80), l(z80), mem); break;
+      case DT_R_A: io_write(c(z80), b(z80), a(z80), mem); break;
       default: break;
       }
       z80->pc += 2;
@@ -1021,10 +1046,10 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt = dt_rp[p];
       z80_trace(z80, mem, 2, "SBC HL,%s", dt_text(dt));
       switch (dt) {
-      case DT_RP_BC: z80_sbc_16(z80, &z80->hl, z80->bc); break;
-      case DT_RP_DE: z80_sbc_16(z80, &z80->hl, z80->de); break;
-      case DT_RP_HL: z80_sbc_16(z80, &z80->hl, z80->hl); break;
-      case DT_RP_SP: z80_sbc_16(z80, &z80->hl, z80->sp); break;
+      case DT_RP_BC: z80_sbc_16(z80, &hl(z80), bc(z80)); break;
+      case DT_RP_DE: z80_sbc_16(z80, &hl(z80), de(z80)); break;
+      case DT_RP_HL: z80_sbc_16(z80, &hl(z80), hl(z80)); break;
+      case DT_RP_SP: z80_sbc_16(z80, &hl(z80), z80->sp); break;
       default: break;
       }
       z80->pc += 2;
@@ -1033,10 +1058,10 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt = dt_rp[p];
       z80_trace(z80, mem, 2, "ADC HL,%s", dt_text(dt));
       switch (dt) {
-      case DT_RP_BC: z80_adc_16(z80, &z80->hl, z80->bc); break;
-      case DT_RP_DE: z80_adc_16(z80, &z80->hl, z80->de); break;
-      case DT_RP_HL: z80_adc_16(z80, &z80->hl, z80->hl); break;
-      case DT_RP_SP: z80_adc_16(z80, &z80->hl, z80->sp); break;
+      case DT_RP_BC: z80_adc_16(z80, &hl(z80), bc(z80)); break;
+      case DT_RP_DE: z80_adc_16(z80, &hl(z80), de(z80)); break;
+      case DT_RP_HL: z80_adc_16(z80, &hl(z80), hl(z80)); break;
+      case DT_RP_SP: z80_adc_16(z80, &hl(z80), z80->sp); break;
       default: break;
       }
       z80->pc += 2;
@@ -1047,16 +1072,16 @@ void z80_execute(z80_t *z80, mem_t *mem)
       z80_trace(z80, mem, 4, "LD (%04x),%s", address, dt_text(dt));
       switch (dt) {
       case DT_RP_BC: 
-        mem_write(mem, address,     z80->c);
-        mem_write(mem, address + 1, z80->b);
+        mem_write(mem, address,     c(z80));
+        mem_write(mem, address + 1, b(z80));
         break;
       case DT_RP_DE:
-        mem_write(mem, address,     z80->e); 
-        mem_write(mem, address + 1, z80->d); 
+        mem_write(mem, address,     e(z80)); 
+        mem_write(mem, address + 1, d(z80)); 
         break;
       case DT_RP_HL:
-        mem_write(mem, address,     z80->l);
-        mem_write(mem, address + 1, z80->h);
+        mem_write(mem, address,     l(z80));
+        mem_write(mem, address + 1, h(z80));
         break;
       case DT_RP_SP:
         mem_write(mem, address,     z80->sp % 256);
@@ -1073,16 +1098,16 @@ void z80_execute(z80_t *z80, mem_t *mem)
       z80_trace(z80, mem, 4, "LD %s,(%04x)", dt_text(dt), address);
       switch (dt) {
       case DT_RP_BC:
-        z80->c = mem_read(mem, address);
-        z80->b = mem_read(mem, address + 1);
+        c(z80) = mem_read(mem, address);
+        b(z80) = mem_read(mem, address + 1);
         break;
       case DT_RP_DE:
-        z80->e = mem_read(mem, address);
-        z80->d = mem_read(mem, address + 1);
+        e(z80) = mem_read(mem, address);
+        d(z80) = mem_read(mem, address + 1);
         break;
       case DT_RP_HL:
-        z80->l = mem_read(mem, address);
-        z80->h = mem_read(mem, address + 1);
+        l(z80) = mem_read(mem, address);
+        h(z80) = mem_read(mem, address + 1);
         break;
       case DT_RP_SP:
         z80->sp =  mem_read(mem, address);
@@ -1095,8 +1120,8 @@ void z80_execute(z80_t *z80, mem_t *mem)
 
     } else if (1 == x && 4 == z) {
       z80_trace(z80, mem, 2, "NEG");
-      uint8_t value = z80->a;
-      z80->a = 0;
+      uint8_t value = a(z80);
+      a(z80) = 0;
       z80_sub(z80, value);
       z80->pc += 2;
 
@@ -1108,50 +1133,50 @@ void z80_execute(z80_t *z80, mem_t *mem)
 
     } else if (1 == x && 7 == z && 0 == y) {
       z80_trace(z80, mem, 2, "LD I,A");
-      z80->i = z80->a;
+      z80->i = a(z80);
       z80->pc += 2;
 
     } else if (1 == x && 7 == z && 1 == y) {
       z80_trace(z80, mem, 2, "LD R,A");
-      z80->r = z80->a;
+      z80->r = a(z80);
       z80->pc += 2;
 
     } else if (1 == x && 7 == z && 2 == y) {
       z80_trace(z80, mem, 2, "LD A,I");
-      z80->a = z80->i;
+      a(z80) = z80->i;
       z80->pc += 2;
 
     } else if (1 == x && 7 == z && 3 == y) {
       z80_trace(z80, mem, 2, "LD A,R");
-      z80->a = z80->r;
+      a(z80) = z80->r;
       z80->pc += 2;
 
     } else if (1 == x && 7 == z && 4 == y) {
       z80_trace(z80, mem, 2, "RRD");
-      uint8_t value_a = z80->a;
-      uint8_t value_hl = mem_read(mem, z80->hl);
-      z80->a = (z80->a & 0xF0) | (value_hl & 0x0F);
-      mem_write(mem, z80->hl,
+      uint8_t value_a = a(z80);
+      uint8_t value_hl = mem_read(mem, hl(z80));
+      a(z80) = (a(z80) & 0xF0) | (value_hl & 0x0F);
+      mem_write(mem, hl(z80),
         ((value_a << 4) & 0xF0) | ((value_hl >> 4) & 0x0F));
-      z80->flag.s = (z80->a & 0x80) ? 1 : 0;
-      z80->flag.z = (z80->a == 0) ? 1 : 0;
-      z80->flag.h = 0;
-      z80->flag.pv = parity_even(z80->a);
-      z80->flag.n = 0;
+      flag(z80).s = (a(z80) & 0x80) ? 1 : 0;
+      flag(z80).z = (a(z80) == 0) ? 1 : 0;
+      flag(z80).h = 0;
+      flag(z80).pv = parity_even(a(z80));
+      flag(z80).n = 0;
       z80->pc += 2;
 
     } else if (1 == x && 7 == z && 5 == y) {
       z80_trace(z80, mem, 2, "RLD");
-      uint8_t value_a = z80->a;
-      uint8_t value_hl = mem_read(mem, z80->hl);
-      z80->a = (z80->a & 0xF0) | ((value_hl >> 4) & 0x0F);
-      mem_write(mem, z80->hl,
+      uint8_t value_a = a(z80);
+      uint8_t value_hl = mem_read(mem, hl(z80));
+      a(z80) = (a(z80) & 0xF0) | ((value_hl >> 4) & 0x0F);
+      mem_write(mem, hl(z80),
         ((value_hl << 4) & 0xF0) | (value_a & 0x0F));
-      z80->flag.s = (z80->a & 0x80) ? 1 : 0;
-      z80->flag.z = (z80->a == 0) ? 1 : 0;
-      z80->flag.h = 0;
-      z80->flag.pv = parity_even(z80->a);
-      z80->flag.n = 0;
+      flag(z80).s = (a(z80) & 0x80) ? 1 : 0;
+      flag(z80).z = (a(z80) == 0) ? 1 : 0;
+      flag(z80).h = 0;
+      flag(z80).pv = parity_even(a(z80));
+      flag(z80).n = 0;
       z80->pc += 2;
 
     } else if (2 == x && 3 >= z && 4 <= y) {
@@ -1162,13 +1187,13 @@ void z80_execute(z80_t *z80, mem_t *mem)
       case DT_BLI_LDD: z80_ldd(z80, mem); break;
       case DT_BLI_LDIR:
         z80_ldi(z80, mem);
-        if (z80->flag.pv) {
+        if (flag(z80).pv) {
           z80->pc -= 2; /* Repeat */
         }
         break;
       case DT_BLI_LDDR:
         z80_ldd(z80, mem);
-        if (z80->flag.pv) {
+        if (flag(z80).pv) {
           z80->pc -= 2; /* Repeat */
         }
         break;
@@ -1176,13 +1201,13 @@ void z80_execute(z80_t *z80, mem_t *mem)
       case DT_BLI_CPD: z80_cpd(z80, mem); break;
       case DT_BLI_CPIR:
         z80_cpi(z80, mem);
-        if (z80->flag.pv && z80->flag.z == 0) {
+        if (flag(z80).pv && flag(z80).z == 0) {
           z80->pc -= 2; /* Repeat */
         }
         break;
       case DT_BLI_CPDR:
         z80_cpd(z80, mem);
-        if (z80->flag.pv && z80->flag.z == 0) {
+        if (flag(z80).pv && flag(z80).z == 0) {
           z80->pc -= 2; /* Repeat */
         }
         break;
@@ -1207,25 +1232,25 @@ void z80_execute(z80_t *z80, mem_t *mem)
   } else if (mc[0] == 0xDD) {
     /* DD prefixed */
     uint8_t x =  mc[1] >> 6;
-    uint8_t y = (mc[1] >> 3) & 0b111;
-    uint8_t z =  mc[1] & 0b111;
+    uint8_t y = (mc[1] >> 3) & 7;
+    uint8_t z =  mc[1] & 7;
     uint8_t p = y >> 1;
     uint8_t q = y % 2;
 
     if (0 == x && 1 == z && 0 == q && 2 == p) {
       uint16_t value = (mc[3] << 8) + mc[2];
       z80_trace(z80, mem, 4, "LD IX,%04x", value);
-      z80->ix = value;
+      ix(z80) = value;
       z80->pc += 4;
 
     } else if (0 == x && 1 == z && 1 == q) {
       dt_t dt = dt_rpix[p];
       z80_trace(z80, mem, 2, "ADD IX,%s", dt_text(dt));
       switch (dt) {
-      case DT_RP_BC: z80_add_16(z80, &z80->ix, z80->bc); break;
-      case DT_RP_DE: z80_add_16(z80, &z80->ix, z80->de); break;
-      case DT_RP_IX: z80_add_16(z80, &z80->ix, z80->ix); break;
-      case DT_RP_SP: z80_add_16(z80, &z80->ix, z80->sp); break;
+      case DT_RP_BC: z80_add_16(z80, &ix(z80), bc(z80)); break;
+      case DT_RP_DE: z80_add_16(z80, &ix(z80), de(z80)); break;
+      case DT_RP_IX: z80_add_16(z80, &ix(z80), ix(z80)); break;
+      case DT_RP_SP: z80_add_16(z80, &ix(z80), z80->sp); break;
       default: break;
       }
       z80->pc += 2;
@@ -1233,78 +1258,78 @@ void z80_execute(z80_t *z80, mem_t *mem)
     } else if (0 == x && 2 == z && 4 == y) {
       uint16_t address = (mc[3] << 8) + mc[2];
       z80_trace(z80, mem, 4, "LD (%04x),IX", address);
-      mem_write(mem, address,     z80->ixl);
-      mem_write(mem, address + 1, z80->ixh);
+      mem_write(mem, address,     ixl(z80));
+      mem_write(mem, address + 1, ixh(z80));
       z80->pc += 4;
 
     } else if (0 == x && 2 == z && 5 == y) {
       uint16_t address = (mc[3] << 8) + mc[2];
       z80_trace(z80, mem, 4, "LD IX,(%04x)", address);
-      z80->ixl = mem_read(mem, address);
-      z80->ixh = mem_read(mem, address + 1);
+      ixl(z80) = mem_read(mem, address);
+      ixh(z80) = mem_read(mem, address + 1);
       z80->pc += 4;
 
     } else if (0 == x && 3 == z && 4 == y) {
       z80_trace(z80, mem, 2, "INC IX");
-      z80->ix++;
+      ix(z80)++;
       z80->pc += 2;
 
     } else if (0 == x && 3 == z && 5 == y) {
       z80_trace(z80, mem, 2, "DEC IX");
-      z80->ix--;
+      ix(z80)--;
       z80->pc += 2;
 
     } else if (0 == x && 4 == z && 4 == y) {
       z80_trace(z80, mem, 2, "INC IXH");
-      z80->ixh = z80_inc(z80, z80->ixh);
+      ixh(z80) = z80_inc(z80, ixh(z80));
       z80->pc += 2;
 
     } else if (0 == x && 4 == z && 5 == y) {
       z80_trace(z80, mem, 2, "INC IXL");
-      z80->ixl = z80_inc(z80, z80->ixl);
+      ixl(z80) = z80_inc(z80, ixl(z80));
       z80->pc += 2;
 
     } else if (0 == x && 4 == z && 6 == y) {
       int8_t displacement = mc[2];
       z80_trace(z80, mem, 3, "INC (IX)");
-      mem_write(mem, z80->ix + displacement, 
-        z80_inc(z80, mem_read(mem, z80->ix + displacement)));
+      mem_write(mem, ix(z80) + displacement, 
+        z80_inc(z80, mem_read(mem, ix(z80) + displacement)));
       z80->pc += 3;
 
     } else if (0 == x && 5 == z && 4 == y) {
       z80_trace(z80, mem, 2, "DEC IXH");
-      z80->ixh = z80_dec(z80, z80->ixh);
+      ixh(z80) = z80_dec(z80, ixh(z80));
       z80->pc += 2;
 
     } else if (0 == x && 5 == z && 5 == y) {
       z80_trace(z80, mem, 2, "DEC IXL");
-      z80->ixl = z80_dec(z80, z80->ixl);
+      ixl(z80) = z80_dec(z80, ixl(z80));
       z80->pc += 2;
 
     } else if (0 == x && 5 == z && 6 == y) {
       int8_t displacement = mc[2];
       z80_trace(z80, mem, 3, "DEC (IX)");
-      mem_write(mem, z80->ix + displacement, 
-        z80_dec(z80, mem_read(mem, z80->ix + displacement)));
+      mem_write(mem, ix(z80) + displacement, 
+        z80_dec(z80, mem_read(mem, ix(z80) + displacement)));
       z80->pc += 3;
 
     } else if (0 == x && 6 == z && 4 == y) {
       uint8_t value = mc[2];
       z80_trace(z80, mem, 3, "LD IXH,%02x", value);
-      z80->ixh = value;
+      ixh(z80) = value;
       z80->pc += 3;
 
     } else if (0 == x && 6 == z && 5 == y) {
       uint8_t value = mc[2];
       z80_trace(z80, mem, 3, "LD IXL,%02x", value);
-      z80->ixl = value;
+      ixl(z80) = value;
       z80->pc += 3;
 
     } else if (0 == x && 6 == z && 6 == y) {
       int8_t displacement = mc[2];
       uint8_t value = mc[3];
       z80_trace(z80, mem, 4, "LD (IX),%02x", value);
-      mem_write(mem, z80->ix + displacement, value);
+      mem_write(mem, ix(z80) + displacement, value);
       z80->pc += 4;
 
     } else if (1 == x && 6 != z) {
@@ -1314,28 +1339,28 @@ void z80_execute(z80_t *z80, mem_t *mem)
       z80_trace(z80, mem, 3, "LD %s,%s", dt_text(dt_dst), dt_text(dt_src));
       uint8_t value = 0;
       switch (dt_src) {
-      case DT_R_B:   value = z80->b; break;
-      case DT_R_C:   value = z80->c; break;
-      case DT_R_D:   value = z80->d; break;
-      case DT_R_E:   value = z80->e; break;
-      case DT_R_IXH: value = z80->ixh; break;
-      case DT_R_IXL: value = z80->ixl; break;
-      case DT_R_A:   value = z80->a; break;
+      case DT_R_B:   value = b(z80); break;
+      case DT_R_C:   value = c(z80); break;
+      case DT_R_D:   value = d(z80); break;
+      case DT_R_E:   value = e(z80); break;
+      case DT_R_IXH: value = ixh(z80); break;
+      case DT_R_IXL: value = ixl(z80); break;
+      case DT_R_A:   value = a(z80); break;
       default: break;
       }
       switch (dt_dst) {
-      case DT_R_B:   z80->b = value; break;
-      case DT_R_C:   z80->c = value; break;
-      case DT_R_D:   z80->d = value; break;
-      case DT_R_E:   z80->e = value; break;
-      case DT_R_IXH: z80->ixh = value; break;
-      case DT_R_IXL: z80->ixl = value; break;
+      case DT_R_B:   b(z80) = value; break;
+      case DT_R_C:   c(z80) = value; break;
+      case DT_R_D:   d(z80) = value; break;
+      case DT_R_E:   e(z80) = value; break;
+      case DT_R_IXH: ixh(z80) = value; break;
+      case DT_R_IXL: ixl(z80) = value; break;
       case DT_R_IXI:
-        if (dt_src == DT_R_IXH) value = z80->h;
-        if (dt_src == DT_R_IXL) value = z80->l;
-        mem_write(mem, z80->ix + displacement, value);
+        if (dt_src == DT_R_IXH) value = h(z80);
+        if (dt_src == DT_R_IXL) value = l(z80);
+        mem_write(mem, ix(z80) + displacement, value);
         break;
-      case DT_R_A:   z80->a = value; break;
+      case DT_R_A:   a(z80) = value; break;
       default: break;
       }
       if (dt_dst == DT_R_IXI) {
@@ -1349,13 +1374,13 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt = dt_r[y];
       z80_trace(z80, mem, 3, "LD %s,(IX)", dt_text(dt));
       switch (dt) {
-      case DT_R_B: z80->b = mem_read(mem, z80->ix + displacement); break;
-      case DT_R_C: z80->c = mem_read(mem, z80->ix + displacement); break;
-      case DT_R_D: z80->d = mem_read(mem, z80->ix + displacement); break;
-      case DT_R_E: z80->e = mem_read(mem, z80->ix + displacement); break;
-      case DT_R_H: z80->h = mem_read(mem, z80->ix + displacement); break;
-      case DT_R_L: z80->l = mem_read(mem, z80->ix + displacement); break;
-      case DT_R_A: z80->a = mem_read(mem, z80->ix + displacement); break;
+      case DT_R_B: b(z80) = mem_read(mem, ix(z80) + displacement); break;
+      case DT_R_C: c(z80) = mem_read(mem, ix(z80) + displacement); break;
+      case DT_R_D: d(z80) = mem_read(mem, ix(z80) + displacement); break;
+      case DT_R_E: e(z80) = mem_read(mem, ix(z80) + displacement); break;
+      case DT_R_H: h(z80) = mem_read(mem, ix(z80) + displacement); break;
+      case DT_R_L: l(z80) = mem_read(mem, ix(z80) + displacement); break;
+      case DT_R_A: a(z80) = mem_read(mem, ix(z80) + displacement); break;
       default: break;
       }
       z80->pc += 3;
@@ -1367,9 +1392,9 @@ void z80_execute(z80_t *z80, mem_t *mem)
       z80_trace(z80, mem, 3, "%s%s", dt_text(dt_op), dt_text(dt_reg));
       uint8_t value = 0;
       switch (dt_reg) {
-      case DT_R_IXH: value = z80->ixh; break;
-      case DT_R_IXL: value = z80->ixl; break;
-      case DT_R_IXI: value = mem_read(mem, z80->ix + displacement); break;
+      case DT_R_IXH: value = ixh(z80); break;
+      case DT_R_IXL: value = ixl(z80); break;
+      case DT_R_IXI: value = mem_read(mem, ix(z80) + displacement); break;
       default: break;
       }
       switch (dt_op) {
@@ -1391,18 +1416,18 @@ void z80_execute(z80_t *z80, mem_t *mem)
 
     } else if (3 == x && 1 == z && 4 == y) {
       z80_trace(z80, mem, 2, "POP IX");
-      z80->ix  = mem_read(mem, z80->sp);
+      ix(z80)  = mem_read(mem, z80->sp);
       z80->sp++;
-      z80->ix += mem_read(mem, z80->sp) << 8;
+      ix(z80) += mem_read(mem, z80->sp) << 8;
       z80->sp++;
       z80->pc += 2;
 
     } else if (3 == x && 5 == z && 4 == y) {
       z80_trace(z80, mem, 2, "PUSH IX");
       z80->sp--;
-      mem_write(mem, z80->sp, z80->ix / 256);
+      mem_write(mem, z80->sp, ix(z80) / 256);
       z80->sp--;
-      mem_write(mem, z80->sp, z80->ix % 256);
+      mem_write(mem, z80->sp, ix(z80) % 256);
       z80->pc += 2;
 
     } else {
@@ -1414,25 +1439,25 @@ void z80_execute(z80_t *z80, mem_t *mem)
   } else if (mc[0] == 0xFD) {
     /* FD prefixed */
     uint8_t x =  mc[1] >> 6;
-    uint8_t y = (mc[1] >> 3) & 0b111;
-    uint8_t z =  mc[1] & 0b111;
+    uint8_t y = (mc[1] >> 3) & 7;
+    uint8_t z =  mc[1] & 7;
     uint8_t p = y >> 1;
     uint8_t q = y % 2;
 
     if (0 == x && 1 == z && 0 == q && 2 == p) {
       uint16_t value = (mc[3] << 8) + mc[2];
       z80_trace(z80, mem, 4, "LD IY,%04x", value);
-      z80->iy = value;
+      iy(z80) = value;
       z80->pc += 4;
 
     } else if (0 == x && 1 == z && 1 == q) {
       dt_t dt = dt_rpiy[p];
       z80_trace(z80, mem, 2, "ADD IY,%s", dt_text(dt));
       switch (dt) {
-      case DT_RP_BC: z80_add_16(z80, &z80->iy, z80->bc); break;
-      case DT_RP_DE: z80_add_16(z80, &z80->iy, z80->de); break;
-      case DT_RP_IY: z80_add_16(z80, &z80->iy, z80->iy); break;
-      case DT_RP_SP: z80_add_16(z80, &z80->iy, z80->sp); break;
+      case DT_RP_BC: z80_add_16(z80, &iy(z80), bc(z80)); break;
+      case DT_RP_DE: z80_add_16(z80, &iy(z80), de(z80)); break;
+      case DT_RP_IY: z80_add_16(z80, &iy(z80), iy(z80)); break;
+      case DT_RP_SP: z80_add_16(z80, &iy(z80), z80->sp); break;
       default: break;
       }
       z80->pc += 2;
@@ -1440,78 +1465,78 @@ void z80_execute(z80_t *z80, mem_t *mem)
     } else if (0 == x && 2 == z && 4 == y) {
       uint16_t address = (mc[3] << 8) + mc[2];
       z80_trace(z80, mem, 4, "LD (%04x),IY", address);
-      mem_write(mem, address,     z80->iyl);
-      mem_write(mem, address + 1, z80->iyh);
+      mem_write(mem, address,     iyl(z80));
+      mem_write(mem, address + 1, iyh(z80));
       z80->pc += 4;
 
     } else if (0 == x && 2 == z && 5 == y) {
       uint16_t address = (mc[3] << 8) + mc[2];
       z80_trace(z80, mem, 4, "LD IY,(%04x)", address);
-      z80->iyl = mem_read(mem, address);
-      z80->iyh = mem_read(mem, address + 1);
+      iyl(z80) = mem_read(mem, address);
+      iyh(z80) = mem_read(mem, address + 1);
       z80->pc += 4;
 
     } else if (0 == x && 3 == z && 4 == y) {
       z80_trace(z80, mem, 2, "INC IY");
-      z80->iy++;
+      iy(z80)++;
       z80->pc += 2;
 
     } else if (0 == x && 3 == z && 5 == y) {
       z80_trace(z80, mem, 2, "DEC IY");
-      z80->iy--;
+      iy(z80)--;
       z80->pc += 2;
 
     } else if (0 == x && 4 == z && 4 == y) {
       z80_trace(z80, mem, 2, "INC IYH");
-      z80->iyh = z80_inc(z80, z80->iyh);
+      iyh(z80) = z80_inc(z80, iyh(z80));
       z80->pc += 2;
 
     } else if (0 == x && 4 == z && 5 == y) {
       z80_trace(z80, mem, 2, "INC IYL");
-      z80->iyl = z80_inc(z80, z80->iyl);
+      iyl(z80) = z80_inc(z80, iyl(z80));
       z80->pc += 2;
 
     } else if (0 == x && 4 == z && 6 == y) {
       int8_t displacement = mc[2];
       z80_trace(z80, mem, 3, "INC (IY)");
-      mem_write(mem, z80->iy + displacement, 
-        z80_inc(z80, mem_read(mem, z80->iy + displacement)));
+      mem_write(mem, iy(z80) + displacement, 
+        z80_inc(z80, mem_read(mem, iy(z80) + displacement)));
       z80->pc += 3;
 
     } else if (0 == x && 5 == z && 4 == y) {
       z80_trace(z80, mem, 2, "DEC IYH");
-      z80->iyh = z80_dec(z80, z80->iyh);
+      iyh(z80) = z80_dec(z80, iyh(z80));
       z80->pc += 2;
 
     } else if (0 == x && 5 == z && 5 == y) {
       z80_trace(z80, mem, 2, "DEC IYL");
-      z80->iyl = z80_dec(z80, z80->iyl);
+      iyl(z80) = z80_dec(z80, iyl(z80));
       z80->pc += 2;
 
     } else if (0 == x && 5 == z && 6 == y) {
       int8_t displacement = mc[2];
       z80_trace(z80, mem, 3, "DEC (IY)");
-      mem_write(mem, z80->iy + displacement, 
-        z80_dec(z80, mem_read(mem, z80->iy + displacement)));
+      mem_write(mem, iy(z80) + displacement, 
+        z80_dec(z80, mem_read(mem, iy(z80) + displacement)));
       z80->pc += 3;
 
     } else if (0 == x && 6 == z && 4 == y) {
       uint8_t value = mc[2];
       z80_trace(z80, mem, 3, "LD IYH,%02x", value);
-      z80->iyh = value;
+      iyh(z80) = value;
       z80->pc += 3;
 
     } else if (0 == x && 6 == z && 5 == y) {
       uint8_t value = mc[2];
       z80_trace(z80, mem, 3, "LD IYL,%02x", value);
-      z80->iyl = value;
+      iyl(z80) = value;
       z80->pc += 3;
 
     } else if (0 == x && 6 == z && 6 == y) {
       int8_t displacement = mc[2];
       uint8_t value = mc[3];
       z80_trace(z80, mem, 4, "LD (IY),%02x", value);
-      mem_write(mem, z80->iy + displacement, value);
+      mem_write(mem, iy(z80) + displacement, value);
       z80->pc += 4;
 
     } else if (1 == x && 6 != z) {
@@ -1521,28 +1546,28 @@ void z80_execute(z80_t *z80, mem_t *mem)
       z80_trace(z80, mem, 3, "LD %s,%s", dt_text(dt_dst), dt_text(dt_src));
       uint8_t value = 0;
       switch (dt_src) {
-      case DT_R_B:   value = z80->b; break;
-      case DT_R_C:   value = z80->c; break;
-      case DT_R_D:   value = z80->d; break;
-      case DT_R_E:   value = z80->e; break;
-      case DT_R_IYH: value = z80->iyh; break;
-      case DT_R_IYL: value = z80->iyl; break;
-      case DT_R_A:   value = z80->a; break;
+      case DT_R_B:   value = b(z80); break;
+      case DT_R_C:   value = c(z80); break;
+      case DT_R_D:   value = d(z80); break;
+      case DT_R_E:   value = e(z80); break;
+      case DT_R_IYH: value = iyh(z80); break;
+      case DT_R_IYL: value = iyl(z80); break;
+      case DT_R_A:   value = a(z80); break;
       default: break;
       }
       switch (dt_dst) {
-      case DT_R_B:   z80->b = value; break;
-      case DT_R_C:   z80->c = value; break;
-      case DT_R_D:   z80->d = value; break;
-      case DT_R_E:   z80->e = value; break;
-      case DT_R_IYH: z80->iyh = value; break;
-      case DT_R_IYL: z80->iyl = value; break;
+      case DT_R_B:   b(z80) = value; break;
+      case DT_R_C:   c(z80) = value; break;
+      case DT_R_D:   d(z80) = value; break;
+      case DT_R_E:   e(z80) = value; break;
+      case DT_R_IYH: iyh(z80) = value; break;
+      case DT_R_IYL: iyl(z80) = value; break;
       case DT_R_IYI:
-        if (dt_src == DT_R_IYH) value = z80->h;
-        if (dt_src == DT_R_IYL) value = z80->l;
-        mem_write(mem, z80->iy + displacement, value);
+        if (dt_src == DT_R_IYH) value = h(z80);
+        if (dt_src == DT_R_IYL) value = l(z80);
+        mem_write(mem, iy(z80) + displacement, value);
         break;
-      case DT_R_A:   z80->a = value; break;
+      case DT_R_A:   a(z80) = value; break;
       default: break;
       }
       if (dt_dst == DT_R_IYI) {
@@ -1556,13 +1581,13 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt = dt_r[y];
       z80_trace(z80, mem, 3, "LD %s,(IY)", dt_text(dt));
       switch (dt) {
-      case DT_R_B: z80->b = mem_read(mem, z80->iy + displacement); break;
-      case DT_R_C: z80->c = mem_read(mem, z80->iy + displacement); break;
-      case DT_R_D: z80->d = mem_read(mem, z80->iy + displacement); break;
-      case DT_R_E: z80->e = mem_read(mem, z80->iy + displacement); break;
-      case DT_R_H: z80->h = mem_read(mem, z80->iy + displacement); break;
-      case DT_R_L: z80->l = mem_read(mem, z80->iy + displacement); break;
-      case DT_R_A: z80->a = mem_read(mem, z80->iy + displacement); break;
+      case DT_R_B: b(z80) = mem_read(mem, iy(z80) + displacement); break;
+      case DT_R_C: c(z80) = mem_read(mem, iy(z80) + displacement); break;
+      case DT_R_D: d(z80) = mem_read(mem, iy(z80) + displacement); break;
+      case DT_R_E: e(z80) = mem_read(mem, iy(z80) + displacement); break;
+      case DT_R_H: h(z80) = mem_read(mem, iy(z80) + displacement); break;
+      case DT_R_L: l(z80) = mem_read(mem, iy(z80) + displacement); break;
+      case DT_R_A: a(z80) = mem_read(mem, iy(z80) + displacement); break;
       default: break;
       }
       z80->pc += 3;
@@ -1574,9 +1599,9 @@ void z80_execute(z80_t *z80, mem_t *mem)
       z80_trace(z80, mem, 3, "%s%s", dt_text(dt_op), dt_text(dt_reg));
       uint8_t value = 0;
       switch (dt_reg) {
-      case DT_R_IYH: value = z80->iyh; break;
-      case DT_R_IYL: value = z80->iyl; break;
-      case DT_R_IYI: value = mem_read(mem, z80->iy + displacement); break;
+      case DT_R_IYH: value = iyh(z80); break;
+      case DT_R_IYL: value = iyl(z80); break;
+      case DT_R_IYI: value = mem_read(mem, iy(z80) + displacement); break;
       default: break;
       }
       switch (dt_op) {
@@ -1598,18 +1623,18 @@ void z80_execute(z80_t *z80, mem_t *mem)
 
     } else if (3 == x && 1 == z && 4 == y) {
       z80_trace(z80, mem, 2, "POP IY");
-      z80->iy  = mem_read(mem, z80->sp);
+      iy(z80)  = mem_read(mem, z80->sp);
       z80->sp++;
-      z80->iy += mem_read(mem, z80->sp) << 8;
+      iy(z80) += mem_read(mem, z80->sp) << 8;
       z80->sp++;
       z80->pc += 2;
 
     } else if (3 == x && 5 == z && 4 == y) {
       z80_trace(z80, mem, 2, "PUSH IY");
       z80->sp--;
-      mem_write(mem, z80->sp, z80->iy / 256);
+      mem_write(mem, z80->sp, iy(z80) / 256);
       z80->sp--;
-      mem_write(mem, z80->sp, z80->iy % 256);
+      mem_write(mem, z80->sp, iy(z80) % 256);
       z80->pc += 2;
 
     } else {
@@ -1621,8 +1646,8 @@ void z80_execute(z80_t *z80, mem_t *mem)
   } else {
     /* Unprefixed */
     uint8_t x =  mc[0] >> 6;
-    uint8_t y = (mc[0] >> 3) & 0b111;
-    uint8_t z =  mc[0] & 0b111;
+    uint8_t y = (mc[0] >> 3) & 7;
+    uint8_t z =  mc[0] & 7;
     uint8_t p = y >> 1;
     uint8_t q = y % 2;
 
@@ -1632,16 +1657,16 @@ void z80_execute(z80_t *z80, mem_t *mem)
 
     } else if (0 == x && 0 == z && 1 == y) {
       z80_trace(z80, mem, 1, "EX AF,AF'");
-      uint16_t value = z80->af;
-      z80->af  = z80->af_;
-      z80->af_ = value;
+      uint16_t value = af(z80);
+      af(z80)  = af_(z80);
+      af_(z80) = value;
       z80->pc += 1;
 
     } else if (0 == x && 0 == z && 2 == y) {
       int8_t displacement = mc[1];
       z80_trace(z80, mem, 2, "DJNZ %04x", z80->pc + displacement + 2);
-      z80->b--;
-      if (z80->b == 0) {
+      b(z80)--;
+      if (b(z80) == 0) {
         z80->pc += 2;
       } else {
         z80->pc += displacement + 2;
@@ -1659,14 +1684,14 @@ void z80_execute(z80_t *z80, mem_t *mem)
         z80->pc + displacement + 2);
       bool go = false;
       switch (dt) {
-      case DT_CC_NZ: go = z80->flag.z  == 0; break;
-      case DT_CC_Z:  go = z80->flag.z  == 1; break;
-      case DT_CC_NC: go = z80->flag.c  == 0; break;
-      case DT_CC_C:  go = z80->flag.c  == 1; break;
-      case DT_CC_PO: go = z80->flag.pv == 0; break;
-      case DT_CC_PE: go = z80->flag.pv == 1; break;
-      case DT_CC_P:  go = z80->flag.s  == 0; break;
-      case DT_CC_M:  go = z80->flag.s  == 1; break;
+      case DT_CC_NZ: go = flag(z80).z  == 0; break;
+      case DT_CC_Z:  go = flag(z80).z  == 1; break;
+      case DT_CC_NC: go = flag(z80).c  == 0; break;
+      case DT_CC_C:  go = flag(z80).c  == 1; break;
+      case DT_CC_PO: go = flag(z80).pv == 0; break;
+      case DT_CC_PE: go = flag(z80).pv == 1; break;
+      case DT_CC_P:  go = flag(z80).s  == 0; break;
+      case DT_CC_M:  go = flag(z80).s  == 1; break;
       default: break;
       }
       if (go) {
@@ -1680,9 +1705,9 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt = dt_rp[p];
       z80_trace(z80, mem, 3, "LD %s,%04x", dt_text(dt), value);
       switch (dt) {
-      case DT_RP_BC: z80->bc = value; break;
-      case DT_RP_DE: z80->de = value; break;
-      case DT_RP_HL: z80->hl = value; break;
+      case DT_RP_BC: bc(z80) = value; break;
+      case DT_RP_DE: de(z80) = value; break;
+      case DT_RP_HL: hl(z80) = value; break;
       case DT_RP_SP: z80->sp = value; break;
       default: break;
       }
@@ -1692,67 +1717,67 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt = dt_rp[p];
       z80_trace(z80, mem, 1, "ADD HL,%s", dt_text(dt));
       switch (dt) {
-      case DT_RP_BC: z80_add_16(z80, &z80->hl, z80->bc); break;
-      case DT_RP_DE: z80_add_16(z80, &z80->hl, z80->de); break;
-      case DT_RP_HL: z80_add_16(z80, &z80->hl, z80->hl); break;
-      case DT_RP_SP: z80_add_16(z80, &z80->hl, z80->sp); break;
+      case DT_RP_BC: z80_add_16(z80, &hl(z80), bc(z80)); break;
+      case DT_RP_DE: z80_add_16(z80, &hl(z80), de(z80)); break;
+      case DT_RP_HL: z80_add_16(z80, &hl(z80), hl(z80)); break;
+      case DT_RP_SP: z80_add_16(z80, &hl(z80), z80->sp); break;
       default: break;
       }
       z80->pc += 1;
 
     } else if (0 == x && 2 == z && 0 == q && 0 == p) {
       z80_trace(z80, mem, 1, "LD (BC),A");
-      mem_write(mem, z80->bc, z80->a);
+      mem_write(mem, bc(z80), a(z80));
       z80->pc += 1;
 
     } else if (0 == x && 2 == z && 0 == q && 1 == p) {
       z80_trace(z80, mem, 1, "LD (DE),A");
-      mem_write(mem, z80->de, z80->a);
+      mem_write(mem, de(z80), a(z80));
       z80->pc += 1;
 
     } else if (0 == x && 2 == z && 0 == q && 2 == p) {
       uint16_t address = (mc[2] << 8) + mc[1];
       z80_trace(z80, mem, 3, "LD (%04x),HL", address);
-      mem_write(mem, address, z80->l);
-      mem_write(mem, address + 1, z80->h);
+      mem_write(mem, address, l(z80));
+      mem_write(mem, address + 1, h(z80));
       z80->pc += 3;
 
     } else if (0 == x && 2 == z && 0 == q && 3 == p) {
       uint16_t address = (mc[2] << 8) + mc[1];
       z80_trace(z80, mem, 3, "LD (%04x),A", address);
-      mem_write(mem, address, z80->a);
+      mem_write(mem, address, a(z80));
       z80->pc += 3;
 
     } else if (0 == x && 2 == z && 1 == q && 0 == p) {
       z80_trace(z80, mem, 1, "LD A,(BC)");
-      z80->a = mem_read(mem, z80->bc);
+      a(z80) = mem_read(mem, bc(z80));
       z80->pc += 1;
 
     } else if (0 == x && 2 == z && 1 == q && 1 == p) {
       z80_trace(z80, mem, 1, "LD A,(DE)");
-      z80->a = mem_read(mem, z80->de);
+      a(z80) = mem_read(mem, de(z80));
       z80->pc += 1;
 
     } else if (0 == x && 2 == z && 1 == q && 2 == p) {
       uint16_t address = (mc[2] << 8) + mc[1];
       z80_trace(z80, mem, 3, "LD HL,(%04x)", address);
-      z80->l = mem_read(mem, address);
-      z80->h = mem_read(mem, address + 1);
+      l(z80) = mem_read(mem, address);
+      h(z80) = mem_read(mem, address + 1);
       z80->pc += 3;
 
     } else if (0 == x && 2 == z && 1 == q && 3 == p) {
       uint16_t address = (mc[2] << 8) + mc[1];
       z80_trace(z80, mem, 3, "LD A,(%04x)", address);
-      z80->a = mem_read(mem, address);
+      a(z80) = mem_read(mem, address);
       z80->pc += 3;
 
     } else if (0 == x && 3 == z && 0 == q) {
       dt_t dt = dt_rp[p];
       z80_trace(z80, mem, 1, "INC %s", dt_text(dt));
       switch (dt) {
-      case DT_RP_BC: z80->bc++; break;
-      case DT_RP_DE: z80->de++; break;
-      case DT_RP_HL: z80->hl++; break;
+      case DT_RP_BC: bc(z80)++; break;
+      case DT_RP_DE: de(z80)++; break;
+      case DT_RP_HL: hl(z80)++; break;
       case DT_RP_SP: z80->sp++; break;
       default: break;
       }
@@ -1762,9 +1787,9 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt = dt_rp[p];
       z80_trace(z80, mem, 1, "DEC %s", dt_text(dt));
       switch (dt) {
-      case DT_RP_BC: z80->bc--; break;
-      case DT_RP_DE: z80->de--; break;
-      case DT_RP_HL: z80->hl--; break;
+      case DT_RP_BC: bc(z80)--; break;
+      case DT_RP_DE: de(z80)--; break;
+      case DT_RP_HL: hl(z80)--; break;
       case DT_RP_SP: z80->sp--; break;
       default: break;
       }
@@ -1774,16 +1799,16 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt = dt_r[y];
       z80_trace(z80, mem, 1, "INC %s", dt_text(dt));
       switch (dt) {
-      case DT_R_B: z80->b = z80_inc(z80, z80->b); break;
-      case DT_R_C: z80->c = z80_inc(z80, z80->c); break;
-      case DT_R_D: z80->d = z80_inc(z80, z80->d); break;
-      case DT_R_E: z80->e = z80_inc(z80, z80->e); break;
-      case DT_R_H: z80->h = z80_inc(z80, z80->h); break;
-      case DT_R_L: z80->l = z80_inc(z80, z80->l); break;
+      case DT_R_B: b(z80) = z80_inc(z80, b(z80)); break;
+      case DT_R_C: c(z80) = z80_inc(z80, c(z80)); break;
+      case DT_R_D: d(z80) = z80_inc(z80, d(z80)); break;
+      case DT_R_E: e(z80) = z80_inc(z80, e(z80)); break;
+      case DT_R_H: h(z80) = z80_inc(z80, h(z80)); break;
+      case DT_R_L: l(z80) = z80_inc(z80, l(z80)); break;
       case DT_R_HLI:
-        mem_write(mem, z80->hl, z80_inc(z80, mem_read(mem, z80->hl)));
+        mem_write(mem, hl(z80), z80_inc(z80, mem_read(mem, hl(z80))));
         break;
-      case DT_R_A: z80->a = z80_inc(z80, z80->a); break;
+      case DT_R_A: a(z80) = z80_inc(z80, a(z80)); break;
       default: break;
       }
       z80->pc += 1;
@@ -1792,16 +1817,16 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt = dt_r[y];
       z80_trace(z80, mem, 1, "DEC %s", dt_text(dt));
       switch (dt) {
-      case DT_R_B: z80->b = z80_dec(z80, z80->b); break;
-      case DT_R_C: z80->c = z80_dec(z80, z80->c); break;
-      case DT_R_D: z80->d = z80_dec(z80, z80->d); break;
-      case DT_R_E: z80->e = z80_dec(z80, z80->e); break;
-      case DT_R_H: z80->h = z80_dec(z80, z80->h); break;
-      case DT_R_L: z80->l = z80_dec(z80, z80->l); break;
+      case DT_R_B: b(z80) = z80_dec(z80, b(z80)); break;
+      case DT_R_C: c(z80) = z80_dec(z80, c(z80)); break;
+      case DT_R_D: d(z80) = z80_dec(z80, d(z80)); break;
+      case DT_R_E: e(z80) = z80_dec(z80, e(z80)); break;
+      case DT_R_H: h(z80) = z80_dec(z80, h(z80)); break;
+      case DT_R_L: l(z80) = z80_dec(z80, l(z80)); break;
       case DT_R_HLI:
-        mem_write(mem, z80->hl, z80_dec(z80, mem_read(mem, z80->hl)));
+        mem_write(mem, hl(z80), z80_dec(z80, mem_read(mem, hl(z80))));
         break;
-      case DT_R_A: z80->a = z80_dec(z80, z80->a); break;
+      case DT_R_A: a(z80) = z80_dec(z80, a(z80)); break;
       default: break;
       }
       z80->pc += 1;
@@ -1811,64 +1836,64 @@ void z80_execute(z80_t *z80, mem_t *mem)
       dt_t dt = dt_r[y];
       z80_trace(z80, mem, 2, "LD %s,%02x", dt_text(dt), value);
       switch (dt) {
-      case DT_R_B:   z80->b = value; break;
-      case DT_R_C:   z80->c = value; break;
-      case DT_R_D:   z80->d = value; break;
-      case DT_R_E:   z80->e = value; break;
-      case DT_R_H:   z80->h = value; break;
-      case DT_R_L:   z80->l = value; break;
-      case DT_R_HLI: mem_write(mem, z80->hl, value); break;
-      case DT_R_A:   z80->a = value; break;
+      case DT_R_B:   b(z80) = value; break;
+      case DT_R_C:   c(z80) = value; break;
+      case DT_R_D:   d(z80) = value; break;
+      case DT_R_E:   e(z80) = value; break;
+      case DT_R_H:   h(z80) = value; break;
+      case DT_R_L:   l(z80) = value; break;
+      case DT_R_HLI: mem_write(mem, hl(z80), value); break;
+      case DT_R_A:   a(z80) = value; break;
       default: break;
       }
       z80->pc += 2;
 
     } else if (0 == x && 7 == z && 0 == y) {
       z80_trace(z80, mem, 1, "RLCA");
-      bool bit = z80->a & 0x80;
-      z80->a <<= 1;
+      bool bit = a(z80) & 0x80;
+      a(z80) <<= 1;
       if (bit) {
-        z80->a |= 0x01;
+        a(z80) |= 0x01;
       }
-      z80->flag.c = bit;
-      z80->flag.h = 0;
-      z80->flag.n = 0;
+      flag(z80).c = bit;
+      flag(z80).h = 0;
+      flag(z80).n = 0;
       z80->pc += 1;
 
     } else if (0 == x && 7 == z && 1 == y) {
       z80_trace(z80, mem, 1, "RRCA");
-      bool bit = z80->a & 0x01;
-      z80->a >>= 1;
+      bool bit = a(z80) & 0x01;
+      a(z80) >>= 1;
       if (bit) {
-        z80->a |= 0x80;
+        a(z80) |= 0x80;
       }
-      z80->flag.c = bit;
-      z80->flag.h = 0;
-      z80->flag.n = 0;
+      flag(z80).c = bit;
+      flag(z80).h = 0;
+      flag(z80).n = 0;
       z80->pc += 1;
 
     } else if (0 == x && 7 == z && 2 == y) {
       z80_trace(z80, mem, 1, "RLA");
-      bool bit = z80->a & 0x80;
-      z80->a <<= 1;
-      if (z80->flag.c) {
-        z80->a |= 0x01;
+      bool bit = a(z80) & 0x80;
+      a(z80) <<= 1;
+      if (flag(z80).c) {
+        a(z80) |= 0x01;
       }
-      z80->flag.c = bit;
-      z80->flag.h = 0;
-      z80->flag.n = 0;
+      flag(z80).c = bit;
+      flag(z80).h = 0;
+      flag(z80).n = 0;
       z80->pc += 1;
 
     } else if (0 == x && 7 == z && 3 == y) {
       z80_trace(z80, mem, 1, "RRA");
-      bool bit = z80->a & 0x01;
-      z80->a >>= 1;
-      if (z80->flag.c) {
-        z80->a |= 0x80;
+      bool bit = a(z80) & 0x01;
+      a(z80) >>= 1;
+      if (flag(z80).c) {
+        a(z80) |= 0x80;
       }
-      z80->flag.c = bit;
-      z80->flag.h = 0;
-      z80->flag.n = 0;
+      flag(z80).c = bit;
+      flag(z80).h = 0;
+      flag(z80).n = 0;
       z80->pc += 1;
 
     } else if (0 == x && 7 == z && 4 == y) {
@@ -1876,64 +1901,64 @@ void z80_execute(z80_t *z80, mem_t *mem)
       uint8_t diff;
       bool out_c;
       bool out_h;
-      if (z80->flag.c) {
-        if ((z80->a & 0x0F) < 0x0A) {
-          diff = z80->flag.h ? 0x66 : 0x60;
+      if (flag(z80).c) {
+        if ((a(z80) & 0x0F) < 0x0A) {
+          diff = flag(z80).h ? 0x66 : 0x60;
         } else {
           diff = 0x66;
         }
         out_c = 1;
       } else {
-        if ((z80->a & 0x0F) < 0x0A) {
-          if (((z80->a >> 4) & 0x0F) < 0xA) {
-            diff = z80->flag.h ? 0x06 : 0x00;
+        if ((a(z80) & 0x0F) < 0x0A) {
+          if (((a(z80) >> 4) & 0x0F) < 0xA) {
+            diff = flag(z80).h ? 0x06 : 0x00;
           } else {
-            diff = z80->flag.h ? 0x66 : 0x60;
+            diff = flag(z80).h ? 0x66 : 0x60;
           }
         } else {
-          diff = (((z80->a >> 4) & 0x0F) < 0x9) ? 0x06 : 0x66;
+          diff = (((a(z80) >> 4) & 0x0F) < 0x9) ? 0x06 : 0x66;
         }
-        if ((z80->a & 0x0F) < 0xA) {
-          out_c = (((z80->a >> 4) & 0x0F) < 0x0A) ? 0 : 1;
+        if ((a(z80) & 0x0F) < 0xA) {
+          out_c = (((a(z80) >> 4) & 0x0F) < 0x0A) ? 0 : 1;
         } else {
-          out_c = (((z80->a >> 4) & 0x0F) < 0x09) ? 0 : 1;
+          out_c = (((a(z80) >> 4) & 0x0F) < 0x09) ? 0 : 1;
         }
       }
-      if (z80->flag.n) {
-        if (z80->flag.h) {
-          out_h = ((z80->a & 0x0F) < 0x06) ? 1 : 0;
+      if (flag(z80).n) {
+        if (flag(z80).h) {
+          out_h = ((a(z80) & 0x0F) < 0x06) ? 1 : 0;
         } else {
           out_h = 0;
         }
       } else {
-        out_h = ((z80->a & 0x0F) < 0x0A) ? 0 : 1;
+        out_h = ((a(z80) & 0x0F) < 0x0A) ? 0 : 1;
       }
-      z80->flag.c = 0;
-      (z80->flag.n) ? z80_sub(z80, diff) : z80_add(z80, diff);
-      z80->flag.pv = parity_even(z80->a);
-      z80->flag.c = out_c;
-      z80->flag.h = out_h;
+      flag(z80).c = 0;
+      (flag(z80).n) ? z80_sub(z80, diff) : z80_add(z80, diff);
+      flag(z80).pv = parity_even(a(z80));
+      flag(z80).c = out_c;
+      flag(z80).h = out_h;
       z80->pc += 1;
 
     } else if (0 == x && 7 == z && 5 == y) {
       z80_trace(z80, mem, 1, "CPL");
-      z80->a = ~z80->a;
-      z80->flag.h = 1;
-      z80->flag.n = 1;
+      a(z80) = ~a(z80);
+      flag(z80).h = 1;
+      flag(z80).n = 1;
       z80->pc += 1;
 
     } else if (0 == x && 7 == z && 6 == y) {
       z80_trace(z80, mem, 1, "SCF");
-      z80->flag.h = 0;
-      z80->flag.n = 0;
-      z80->flag.c = 1;
+      flag(z80).h = 0;
+      flag(z80).n = 0;
+      flag(z80).c = 1;
       z80->pc += 1;
 
     } else if (0 == x && 7 == z && 7 == y) {
       z80_trace(z80, mem, 1, "CCF");
-      z80->flag.h = z80->flag.c;
-      z80->flag.n = 0;
-      z80->flag.c = ~z80->flag.c;
+      flag(z80).h = flag(z80).c;
+      flag(z80).n = 0;
+      flag(z80).c = ~flag(z80).c;
       z80->pc += 1;
 
     } else if (1 == x && !(6 == z && 6 == y)) {
@@ -1942,25 +1967,25 @@ void z80_execute(z80_t *z80, mem_t *mem)
       z80_trace(z80, mem, 1, "LD %s,%s", dt_text(dt_dst), dt_text(dt_src));
       uint8_t value = 0;
       switch (dt_src) {
-      case DT_R_B:   value = z80->b; break;
-      case DT_R_C:   value = z80->c; break;
-      case DT_R_D:   value = z80->d; break;
-      case DT_R_E:   value = z80->e; break;
-      case DT_R_H:   value = z80->h; break;
-      case DT_R_L:   value = z80->l; break;
-      case DT_R_HLI: value = mem_read(mem, z80->hl); break;
-      case DT_R_A:   value = z80->a; break;
+      case DT_R_B:   value = b(z80); break;
+      case DT_R_C:   value = c(z80); break;
+      case DT_R_D:   value = d(z80); break;
+      case DT_R_E:   value = e(z80); break;
+      case DT_R_H:   value = h(z80); break;
+      case DT_R_L:   value = l(z80); break;
+      case DT_R_HLI: value = mem_read(mem, hl(z80)); break;
+      case DT_R_A:   value = a(z80); break;
       default: break;
       }
       switch (dt_dst) {
-      case DT_R_B:   z80->b = value; break;
-      case DT_R_C:   z80->c = value; break;
-      case DT_R_D:   z80->d = value; break;
-      case DT_R_E:   z80->e = value; break;
-      case DT_R_H:   z80->h = value; break;
-      case DT_R_L:   z80->l = value; break;
-      case DT_R_HLI: mem_write(mem, z80->hl, value); break;
-      case DT_R_A:   z80->a = value; break;
+      case DT_R_B:   b(z80) = value; break;
+      case DT_R_C:   c(z80) = value; break;
+      case DT_R_D:   d(z80) = value; break;
+      case DT_R_E:   e(z80) = value; break;
+      case DT_R_H:   h(z80) = value; break;
+      case DT_R_L:   l(z80) = value; break;
+      case DT_R_HLI: mem_write(mem, hl(z80), value); break;
+      case DT_R_A:   a(z80) = value; break;
       default: break;
       }
       z80->pc += 1;
@@ -1976,14 +2001,14 @@ void z80_execute(z80_t *z80, mem_t *mem)
       z80_trace(z80, mem, 1, "%s%s", dt_text(dt_op), dt_text(dt_reg));
       uint8_t value = 0;
       switch (dt_reg) {
-      case DT_R_B:   value = z80->b; break;
-      case DT_R_C:   value = z80->c; break;
-      case DT_R_D:   value = z80->d; break;
-      case DT_R_E:   value = z80->e; break;
-      case DT_R_H:   value = z80->h; break;
-      case DT_R_L:   value = z80->l; break;
-      case DT_R_HLI: value = mem_read(mem, z80->hl); break;
-      case DT_R_A:   value = z80->a; break;
+      case DT_R_B:   value = b(z80); break;
+      case DT_R_C:   value = c(z80); break;
+      case DT_R_D:   value = d(z80); break;
+      case DT_R_E:   value = e(z80); break;
+      case DT_R_H:   value = h(z80); break;
+      case DT_R_L:   value = l(z80); break;
+      case DT_R_HLI: value = mem_read(mem, hl(z80)); break;
+      case DT_R_A:   value = a(z80); break;
       default: break;
       }
       switch (dt_op) {
@@ -2004,27 +2029,27 @@ void z80_execute(z80_t *z80, mem_t *mem)
       z80_trace(z80, mem, 1, "POP %s", dt_text(dt));
       switch (dt) {
       case DT_RP_BC:
-        z80->c = mem_read(mem, z80->sp);
+        c(z80) = mem_read(mem, z80->sp);
         z80->sp++;
-        z80->b = mem_read(mem, z80->sp);
+        b(z80) = mem_read(mem, z80->sp);
         z80->sp++;
         break;
       case DT_RP_DE:
-        z80->e = mem_read(mem, z80->sp);
+        e(z80) = mem_read(mem, z80->sp);
         z80->sp++;
-        z80->d = mem_read(mem, z80->sp);
+        d(z80) = mem_read(mem, z80->sp);
         z80->sp++;
         break;
       case DT_RP_HL:
-        z80->l = mem_read(mem, z80->sp);
+        l(z80) = mem_read(mem, z80->sp);
         z80->sp++;
-        z80->h = mem_read(mem, z80->sp);
+        h(z80) = mem_read(mem, z80->sp);
         z80->sp++;
         break;
       case DT_RP_AF:
-        z80->f = mem_read(mem, z80->sp);
+        f(z80) = mem_read(mem, z80->sp);
         z80->sp++;
-        z80->a = mem_read(mem, z80->sp);
+        a(z80) = mem_read(mem, z80->sp);
         z80->sp++;
         break;
       default:
@@ -2037,14 +2062,14 @@ void z80_execute(z80_t *z80, mem_t *mem)
       z80_trace(z80, mem, 1, "RET %s", dt_text(dt));
       bool go = false;
       switch (dt) {
-      case DT_CC_NZ: go = z80->flag.z  == 0; break;
-      case DT_CC_Z:  go = z80->flag.z  == 1; break;
-      case DT_CC_NC: go = z80->flag.c  == 0; break;
-      case DT_CC_C:  go = z80->flag.c  == 1; break;
-      case DT_CC_PO: go = z80->flag.pv == 0; break;
-      case DT_CC_PE: go = z80->flag.pv == 1; break;
-      case DT_CC_P:  go = z80->flag.s  == 0; break;
-      case DT_CC_M:  go = z80->flag.s  == 1; break;
+      case DT_CC_NZ: go = flag(z80).z  == 0; break;
+      case DT_CC_Z:  go = flag(z80).z  == 1; break;
+      case DT_CC_NC: go = flag(z80).c  == 0; break;
+      case DT_CC_C:  go = flag(z80).c  == 1; break;
+      case DT_CC_PO: go = flag(z80).pv == 0; break;
+      case DT_CC_PE: go = flag(z80).pv == 1; break;
+      case DT_CC_P:  go = flag(z80).s  == 0; break;
+      case DT_CC_M:  go = flag(z80).s  == 1; break;
       default: break;
       }
       if (go) {
@@ -2066,25 +2091,25 @@ void z80_execute(z80_t *z80, mem_t *mem)
     } else if (3 == x && 1 == z && 1 == q && 1 == p) {
       z80_trace(z80, mem, 1, "EXX");
       uint16_t value;
-      value    = z80->bc;
-      z80->bc  = z80->bc_;
-      z80->bc_ = value;
-      value    = z80->de;
-      z80->de  = z80->de_;
-      z80->de_ = value;
-      value    = z80->hl;
-      z80->hl  = z80->hl_;
-      z80->hl_ = value;
+      value    = bc(z80);
+      bc(z80)  = bc_(z80);
+      bc_(z80) = value;
+      value    = de(z80);
+      de(z80)  = de_(z80);
+      de_(z80) = value;
+      value    = hl(z80);
+      hl(z80)  = hl_(z80);
+      hl_(z80) = value;
       z80->pc += 1;
 
     } else if (3 == x && 1 == z && 1 == q && 2 == p) {
       z80_trace(z80, mem, 1, "JP HL");
-      z80->pc  = z80->l;
-      z80->pc += z80->h << 8;
+      z80->pc  = l(z80);
+      z80->pc += h(z80) << 8;
 
     } else if (3 == x && 1 == z && 1 == q && 3 == p) {
       z80_trace(z80, mem, 1, "LD SP,HL");
-      z80->sp = z80->hl;
+      z80->sp = hl(z80);
       z80->pc += 1;
 
     } else if (3 == x && 2 == z) {
@@ -2093,14 +2118,14 @@ void z80_execute(z80_t *z80, mem_t *mem)
       z80_trace(z80, mem, 3, "JP %s,%04x", dt_text(dt), address);
       bool go = false;
       switch (dt) {
-      case DT_CC_NZ: go = z80->flag.z  == 0; break;
-      case DT_CC_Z:  go = z80->flag.z  == 1; break;
-      case DT_CC_NC: go = z80->flag.c  == 0; break;
-      case DT_CC_C:  go = z80->flag.c  == 1; break;
-      case DT_CC_PO: go = z80->flag.pv == 0; break;
-      case DT_CC_PE: go = z80->flag.pv == 1; break;
-      case DT_CC_P:  go = z80->flag.s  == 0; break;
-      case DT_CC_M:  go = z80->flag.s  == 1; break;
+      case DT_CC_NZ: go = flag(z80).z  == 0; break;
+      case DT_CC_Z:  go = flag(z80).z  == 1; break;
+      case DT_CC_NC: go = flag(z80).c  == 0; break;
+      case DT_CC_C:  go = flag(z80).c  == 1; break;
+      case DT_CC_PO: go = flag(z80).pv == 0; break;
+      case DT_CC_PE: go = flag(z80).pv == 1; break;
+      case DT_CC_P:  go = flag(z80).s  == 0; break;
+      case DT_CC_M:  go = flag(z80).s  == 1; break;
       default: break;
       }
       if (go) {
@@ -2117,13 +2142,13 @@ void z80_execute(z80_t *z80, mem_t *mem)
     } else if (3 == x && 3 == z && 2 == y) {
       uint8_t value = mc[1];
       z80_trace(z80, mem, 2, "OUT (%02x),A", value);
-      io_write(value, z80->a, z80->a, mem);
+      io_write(value, a(z80), a(z80), mem);
       z80->pc += 2;
 
     } else if (3 == x && 3 == z && 3 == y) {
       uint8_t value = mc[1];
       z80_trace(z80, mem, 2, "IN A,(%02x)", value);
-      z80->a = io_read(value, z80->a);
+      a(z80) = io_read(value, a(z80));
       z80->pc += 2;
 
     } else if (3 == x && 3 == z && 4 == y) {
@@ -2131,16 +2156,16 @@ void z80_execute(z80_t *z80, mem_t *mem)
       uint16_t value;
       value  = mem_read(mem, z80->sp);
       value += mem_read(mem, z80->sp + 1) << 8;
-      mem_write(mem, z80->sp, z80->l);
-      mem_write(mem, z80->sp + 1, z80->h);
-      z80->hl = value;
+      mem_write(mem, z80->sp, l(z80));
+      mem_write(mem, z80->sp + 1, h(z80));
+      hl(z80) = value;
       z80->pc += 1;
 
     } else if (3 == x && 3 == z && 5 == y) {
       z80_trace(z80, mem, 1, "EX DE,HL");
-      uint16_t value = z80->hl;
-      z80->hl = z80->de;
-      z80->de = value;
+      uint16_t value = hl(z80);
+      hl(z80) = de(z80);
+      de(z80) = value;
       z80->pc += 1;
 
     } else if (3 == x && 3 == z && 6 == y) {
@@ -2161,14 +2186,14 @@ void z80_execute(z80_t *z80, mem_t *mem)
       z80_trace(z80, mem, 3, "CALL %s,%04x", dt_text(dt), address);
       bool go = false;
       switch (dt) {
-      case DT_CC_NZ: go = z80->flag.z  == 0; break;
-      case DT_CC_Z:  go = z80->flag.z  == 1; break;
-      case DT_CC_NC: go = z80->flag.c  == 0; break;
-      case DT_CC_C:  go = z80->flag.c  == 1; break;
-      case DT_CC_PO: go = z80->flag.pv == 0; break;
-      case DT_CC_PE: go = z80->flag.pv == 1; break;
-      case DT_CC_P:  go = z80->flag.s  == 0; break;
-      case DT_CC_M:  go = z80->flag.s  == 1; break;
+      case DT_CC_NZ: go = flag(z80).z  == 0; break;
+      case DT_CC_Z:  go = flag(z80).z  == 1; break;
+      case DT_CC_NC: go = flag(z80).c  == 0; break;
+      case DT_CC_C:  go = flag(z80).c  == 1; break;
+      case DT_CC_PO: go = flag(z80).pv == 0; break;
+      case DT_CC_PE: go = flag(z80).pv == 1; break;
+      case DT_CC_P:  go = flag(z80).s  == 0; break;
+      case DT_CC_M:  go = flag(z80).s  == 1; break;
       default: break;
       }
       if (go) {
@@ -2196,27 +2221,27 @@ void z80_execute(z80_t *z80, mem_t *mem)
       switch (dt) {
       case DT_RP_BC:
         z80->sp--;
-        mem_write(mem, z80->sp, z80->b);
+        mem_write(mem, z80->sp, b(z80));
         z80->sp--;
-        mem_write(mem, z80->sp, z80->c);
+        mem_write(mem, z80->sp, c(z80));
         break;
       case DT_RP_DE:
         z80->sp--;
-        mem_write(mem, z80->sp, z80->d);
+        mem_write(mem, z80->sp, d(z80));
         z80->sp--;
-        mem_write(mem, z80->sp, z80->e);
+        mem_write(mem, z80->sp, e(z80));
         break;
       case DT_RP_HL:
         z80->sp--;
-        mem_write(mem, z80->sp, z80->h);
+        mem_write(mem, z80->sp, h(z80));
         z80->sp--;
-        mem_write(mem, z80->sp, z80->l);
+        mem_write(mem, z80->sp, l(z80));
         break;
       case DT_RP_AF:
         z80->sp--;
-        mem_write(mem, z80->sp, z80->a);
+        mem_write(mem, z80->sp, a(z80));
         z80->sp--;
-        mem_write(mem, z80->sp, z80->f);
+        mem_write(mem, z80->sp, f(z80));
         break;
       default:
         break;

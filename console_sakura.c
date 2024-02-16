@@ -166,7 +166,8 @@ void console_write(uint8_t value)
     break;
 
   case 0xA4:
-    single[0] = '©';
+    /* Copyright Symbol */
+    single[0] = 'c';
     single[1] = '\0';
     uart0_send(single);
     break;

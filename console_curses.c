@@ -45,7 +45,9 @@ uint8_t console_read(void)
   int ch;
 
   timeout(-1);
-  ch = getch(); /* Blocking read here. */
+  do {
+    ch = getch(); /* Blocking read here. */
+  } while (ch == ERR);
   timeout(0);
 
   /* ADM-3A emulation of key presses. */
@@ -170,8 +172,8 @@ void console_write(uint8_t value)
     }
     break;
 
-  case 0xA4:
-    addch('©');
+  case 0xA4: /* Copyright Symbol */
+    addch('c');
     break;
 
   default:

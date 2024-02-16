@@ -54,7 +54,7 @@ uint8_t console_status(void)
   int result;
   struct pollfd fds[1];
 
-  fds[0].fd = fileno(stdin);
+  fds[0].fd = STDIN_FILENO;
   fds[0].events = POLLIN;
   result = poll(fds, 1, 0);
   if (result == -1) {
@@ -72,7 +72,11 @@ uint8_t console_status(void)
 
 uint8_t console_read(void)
 {
-  uint8_t value = fgetc(stdin);
+  int value;
+
+  do {
+    value = fgetc(stdin);
+  } while (value == EOF);
 
   switch (value) {
   case 0x0A: /* Convert LF to CR */
@@ -118,7 +122,7 @@ void console_write(uint8_t value)
 
   } else if (escape == 3) {
     /* ANSI - Cursor Position */
-    fprintf(stdout, "\e[%d;%dH", row - 31, value - 31);
+    fprintf(stdout, "\033[%d;%dH", row - 31, value - 31);
     escape++;
     return;
 
@@ -145,12 +149,12 @@ void console_write(uint8_t value)
   switch (value) {
   case 0x0B:
     /* ANSI - Cursor Up */
-    fprintf(stdout, "\e[A");
+    fprintf(stdout, "\033[A");
     break;
 
   case 0x0C:
     /* ANSI - Cursor Right */
-    fprintf(stdout, "\e[C");
+    fprintf(stdout, "\033[C");
     break;
 
   case 0x1B:
@@ -163,11 +167,11 @@ void console_write(uint8_t value)
 
   case 0x1A:
     /* ANSI - Erase in Display */
-    fprintf(stdout, "\e[2J");
+    fprintf(stdout, "\033[2J");
     /* Fallthrough! */
   case 0x1E:
     /* ANSI - Cursor Home */
-    fprintf(stdout, "\e[H");
+    fprintf(stdout, "\033[H");
     break;
 
   case 0x3D:
@@ -180,7 +184,8 @@ void console_write(uint8_t value)
     break;
 
   case 0xA4:
-    fputc('©', stdout);
+    /* Copyright Symbol */
+    fputc('c', stdout);
     break;
 
   default:

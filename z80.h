@@ -27,83 +27,83 @@ typedef struct z80_s {
           uint8_t s  : 1; /* Sign */
         } flag;
         uint8_t f; /* Flag */
-      };
+      } u_f;
       uint8_t a; /* Accumulator */
-    };
+    } s_af;
     uint16_t af; /* Combined AF */
-  };
+  } u_af;
 
   union {
     struct {
       uint8_t c; /* General Purpose C */
       uint8_t b; /* General Purpose B */
-    };
+    } s_bc;
     uint16_t bc; /* General Purpose BC */
-  };
+  } u_bc;
 
   union {
     struct {
       uint8_t e; /* General Purpose E */
       uint8_t d; /* General Purpose D */
-    };
+    } s_de;
     uint16_t de; /* General Purpose DE */
-  };
+  } u_de;
 
   union {
     struct {
       uint8_t l; /* General Purpose L */
       uint8_t h; /* General Purpose H */
-    };
+    } s_hl;
     uint16_t hl; /* General Purpose HL */
-  };
+  } u_hl;
 
   union {
     struct {
       uint8_t ixl; /* IX Low Part */
       uint8_t ixh; /* IX High Part */
-    };
+    } s_ix;
     uint16_t ix; /* Index Register X */
-  };
+  } u_ix;
 
   union {
     struct {
       uint8_t iyl; /* IY Low Part */
       uint8_t iyh; /* IY High Part */
-    };
+    } s_iy;
     uint16_t iy; /* Index Register Y */
-  };
+  } u_iy;
 
   union {
     struct {
       uint8_t f_; /* Alternate F' */
       uint8_t a_; /* Alternate A' */
-    };
+    } s_af_;
     uint16_t af_; /* Alternate AF' */
-  };
+  } u_af_;
 
   union {
     struct {
       uint8_t c_; /* Alternate C' */
       uint8_t b_; /* Alternate B' */
-    };
+    } s_bc_;
     uint16_t bc_; /* Alternate BC' */
-  };
+  } u_bc_;
 
   union {
     struct {
       uint8_t e_; /* Alternate E' */
       uint8_t d_; /* Alternate D' */
-    };
+    } s_de_;
     uint16_t de_; /* Alternate DE' */
-  };
+  } u_de_;
 
   union {
     struct {
       uint8_t l_; /* Alternate L' */
       uint8_t h_; /* Alternate H' */
-    };
+    } s_hl_;
     uint16_t hl_; /* Alternate HL' */
-  };
+  } u_hl_;
 
 } z80_t;
 

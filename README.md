@@ -7,6 +7,7 @@ Some features:
 * Instruction trace and memory dumps for easier debugging.
 * Uses IBM 3740 8-inch floppy disk images. (Use [cpmtools](http://www.moria.de/~michael/cpmtools/) to create images and copy files from the host system.)
 * Converts ADM-3A escape codes to ANSI (vt100/xterm) escape codes.
+* C99 compatible source code.
 
 Some supported games:
 * Ladder (Yahoo Software, Kaypro II Version)
@@ -112,6 +113,7 @@ Information on my blog:
 * [CP/M on the GR-SAKURA](https://kobolt.github.io/article-184.html)
 * [CP/M on the Raspberry Pi Pico](https://kobolt.github.io/article-196.html)
 * [More CP/M Emulator Ports](https://kobolt.github.io/article-205.html)
+* [CP/M Emulator C99 Compatibility](https://kobolt.github.io/article-230.html)
 
 YouTube video:
 * [Kaypro II games](https://www.youtube.com/watch?v=uovRWOjvs98)

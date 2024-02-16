@@ -134,7 +134,8 @@ void console_write(uint8_t value)
     break;
 
   case 0xA4:
-    fputc('©', stdout);
+    /* Copyright Symbol */
+    fputc('c', stdout);
     break;
 
   default:
