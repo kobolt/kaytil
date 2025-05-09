@@ -124,6 +124,7 @@ Information on my blog:
 * [CP/M on the Raspberry Pi Pico](https://kobolt.github.io/article-196.html)
 * [More CP/M Emulator Ports](https://kobolt.github.io/article-205.html)
 * [CP/M Emulator C99 Compatibility](https://kobolt.github.io/article-230.html)
+* [CP/M on the GR-CITRUS](https://kobolt.github.io/article-256.html)
 
 YouTube video:
 * [Kaypro II games](https://www.youtube.com/watch?v=uovRWOjvs98)
