@@ -1,5 +1,5 @@
 # Kaytil
-Z80 CP/M 2.2 emulator focused on running Kaypro II compatible games in a Linux terminal. (Now also available on a GR-SAKURA, Raspberry Pi Pico, DOS or Windows.)
+Z80 CP/M 2.2 emulator focused on running Kaypro II compatible games in a Linux terminal. (Now also available on a GR-SAKURA, GR-CITRUS, Raspberry Pi Pico, DOS or Windows.)
 
 Some features:
 * Z80 emulation passes ZEXDOC tests.
@@ -49,6 +49,16 @@ make -f Makefile.sakura
 The resulting "kaytil.bin" file can be copied to the fake USB disk when the GR-SAKURA is in the bootloader mode.
 Disk images must be named "A.IMG", "B.IMG", "C.IMG" and "D.IMG" and then placed on the root of a FAT16 formatted MicroSD card.
 The console is available on the first UART, marked by pin 0 (RX) and pin 1 (TX) running at 115200 baud.
+
+## Gadget Renesas GR-CITRUS Version
+Building this also requires the RX GCC toolchain.
+Then use the appropriate Makefile:
+```
+make -f Makefile.citrus
+```
+The resulting "kaytil.bin" file can be copied to the fake USB disk when the GR-CITRUS is in the bootloader mode. NOTE: Make sure to "sync" the USB disk before unmounting to prevent corruption on large binary files.
+Disk images are part of the binary itself, so replace the "disk_a.img", "disk_b.img", "disk_c.img" or "disk_d.img" files in the "citrus/" subdirectory BEFORE building!
+The console is available on the first UART, marked by pin 0 (TX1) and pin 1 (RX1) running at 115200 baud.
 
 ## Raspberry Pi Pico Version
 Building this requires CMake, the ARM GCC toolchain and [Pico SDK](https://github.com/raspberrypi/pico-sdk).
